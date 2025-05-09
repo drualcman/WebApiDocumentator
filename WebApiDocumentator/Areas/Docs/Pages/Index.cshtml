@@ -1,0 +1,241 @@
+@page
+@using WebApiDocumentator.Areas.Docs.Pages
+@model WebApiDocumentator.Areas.Docs.Pages.IndexModel
+@{
+    var selected = Model.SelectedEndpoint;
+    var method = selected?.HttpMethod ?? "GET";  // Si no hay método seleccionado, usar GET como valor predeterminado
+    var route = selected?.Route ?? "/default/route";  // Si no hay ruta seleccionada, usar una ruta predeterminada
+    var version = Model.GetApiVersion();
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@Model.Name (@Model.Version) | Documentation</title>
+    <style>
+        body {
+        display: flex;
+        font-family: sans-serif;
+        margin: 0;
+        height: 100vh; /* Hacer que el body ocupe toda la pantalla */
+        overflow-x: hidden; /* Evitar desbordamiento horizontal */
+        }
+
+        #sidebar {    
+        width: 250px;
+        background: #f2f2f2;
+        padding: 10px;
+        overflow-y: auto; /* Solo desplazamiento vertical */
+        height: 100vh;
+        min-height: 100%; /* Asegurar que ocupe todo el alto disponible */
+        }
+
+        #content {
+        flex: 2;
+        padding: 20px;
+        overflow-y: auto; /* Solo desplazamiento vertical */
+        min-height: 100%; /* Asegurar que ocupe todo el alto disponible */
+        }
+
+        #examples {
+        flex: 1;
+        padding: 20px;
+        background: #fafafa;
+        border-left: 1px solid #ccc;
+        overflow-y: auto; /* Solo desplazamiento vertical */
+        min-height: 100%; /* Asegurar que ocupe todo el alto disponible */
+        }
+
+
+        .http-method {
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.8em;
+        color: white;
+        }
+
+        .GET {
+        background: #28a745;
+        }
+
+        .POST {
+        background: #ff9800;
+        }
+
+        .DELETE {
+        background: #dc3545;
+        }
+
+        .PUT {
+        background: #007bff;
+        }
+
+        .PATCH {
+        background: #17a2b8;
+        }
+
+        a.endpoint-link {
+        text-decoration: none;
+        font-size: 0.9em;
+        display: block;
+        margin: 2px 0;
+        }
+
+        .selected {
+        font-weight: bold;
+        color: darkblue;
+        }
+
+        .preformatted-response {
+        background-color: #333; /* Fondo negro */
+        color: white; /* Texto blanco */
+        padding: 20px; /* Espaciado interno */
+        border-radius: 5px; /* Bordes redondeados */
+        font-family: monospace; /* Fuente de tipo monoespaciado */
+        white-space: pre-wrap; /* Asegurar que el texto largo no se desborde horizontalmente */
+        word-wrap: break-word; /* Romper palabras largas si es necesario */
+        overflow-y: auto; /* Sólo permitir desplazamiento vertical */
+        max-height: 400px; /* Limitar la altura para que no ocupe toda la página */
+        }
+
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+
+        <a class="endpoint-link"
+        href="/docs">
+            <h3>@Model.Name</h3>
+        </a>
+        <h4>Endpoints</h4>
+        <ul>
+            @foreach(var group in Model.Groups)
+            {
+                <li>
+                    <strong>@group.PathPrefix</strong>
+                    <ul>
+                        @foreach(var endpoint in group.Endpoints)
+                        {
+                            var isSelected = endpoint.Route == selected?.Route && endpoint.HttpMethod == selected?.HttpMethod;
+                            <li>
+                                <a class="endpoint-link @(isSelected ? "selected" : "")"
+                                href="?method=@endpoint.HttpMethod&route=@Uri.EscapeDataString(endpoint.Route)">
+                                    <span class="http-method @endpoint.HttpMethod">@endpoint.HttpMethod</span>
+                                    @endpoint.Route
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </li>
+            }
+        </ul>
+    </div>
+
+    <div id="content">
+
+        @if(selected is null)
+        {
+            <h1>@Model.Name</h1>
+            <h2>@Model.Version</h2>
+            @if(!string.IsNullOrWhiteSpace(version))
+            {
+                <a class="endpoint-link" href="/openapi/@(version).json" target="_blank">
+                    OpenAPI @version
+                </a>
+            }
+            <p>@Model.Description</p>
+        }
+        else
+        {
+            <h2>Detalle del endpoint</h2>
+            <div class="endpoint">
+                <div class="http-method @selected.HttpMethod">@selected.HttpMethod</div>
+                <div><strong>Ruta:</strong> @selected.Route</div>
+                <div><strong>Descripción:</strong> @selected.Summary</div>
+                <div><strong>Retorno:</strong> @selected.ReturnType</div>
+                @if(selected.Parameters.Any())
+                {
+                    <div>
+                        <strong>Parámetros:</strong>
+                        <ul>
+                            @foreach(var param in selected.Parameters)
+                            {
+                                <li>@param.Name : @param.Type (FromBody: @param.IsFromBody)</li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+            <h4>Probar este endpoint</h4>
+
+            <form method="post" action="/Docs?method=@selected.HttpMethod&route=@Uri.EscapeDataString(selected.Route)">
+                <input type="hidden" name="TestInput.Method" value="@method" />
+                <input type="hidden" name="TestInput.Route" value="@route" />
+                @Html.AntiForgeryToken()
+
+
+                @foreach(var param in selected.Parameters)
+                {
+                    <div>
+                        <label>@param.Name (@param.Type):</label><br />
+                        <input type="text" name="TestInput.Parameters[@param.Name]" />
+                    </div>
+                }
+
+                <button type="submit">Probar</button>
+            </form>
+
+            @if(Model.TestResponse != null)
+            {
+                <h4>Respuesta de prueba</h4>
+                <pre class="preformatted-response">@Model.TestResponse</pre>
+            }
+
+        }
+    </div>
+
+    @if(selected != null)
+    {
+        <div id="examples">
+            <h3>Ejemplos</h3>
+
+            <h4>cURL</h4>
+            <pre>
+            curl -X @selected.HttpMethod https://api.tuweb.com@selected.Route
+                    </pre>
+
+            <h4>C# (HttpClient)</h4>
+            <pre>
+            using var client = new HttpClient();
+            client.BaseAddress = new Uri("https://api.tuweb.com");
+            var response = await client.@(selected.HttpMethod)Async("@selected.Route");
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
+                    </pre>
+
+            <h4>fetch (JavaScript)</h4>
+            <pre>
+            fetch("https://api.tuweb.com@selected.Route", {
+                method: "@selected.HttpMethod"
+            })
+            .then(res => res.json())
+            .then(data => console.log(data));
+                    </pre>
+
+            @if(selected.Parameters.Any())
+            {
+                <h4>Parámetros esperados</h4>
+                <ul>
+                    @foreach(var param in selected.Parameters)
+                    {
+                        <li><code>@param.Name</code>: <em>@param.Type</em> (FromBody: @param.IsFromBody)</li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+
+</body>
+</html>
