@@ -4,11 +4,11 @@ using WebApiDocumentator.Metadata;
 using WebApiDocumentator.Options;
 
 var builder = WebApplication.CreateBuilder(args);
-// Configurar el logging para un nivel detallado
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole().SetMinimumLevel(LogLevel.Trace);
-builder.Logging.AddDebug().SetMinimumLevel(LogLevel.Trace);  // Asegúrate de que los logs lleguen al debug
-builder.Logging.AddEventSourceLogger(); // Esto también muestra detalles de eventos internos
+//// Configurar el logging para un nivel detallado
+//builder.Logging.ClearProviders();
+//builder.Logging.AddConsole().SetMinimumLevel(LogLevel.Trace);
+//builder.Logging.AddDebug().SetMinimumLevel(LogLevel.Trace);  // Asegúrate de que los logs lleguen al debug
+//builder.Logging.AddEventSourceLogger(); // Esto también muestra detalles de eventos internos
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -49,7 +49,7 @@ app.MapGet("/weatherforecast", () =>
     return forecast;
 })
 .WithName("GetWeatherForecast");
-app.MapPost("/algo", (DocumentatorOptions data) => Results.Ok());
+app.MapPost("/algo", (DocumentatorOptions data) => Results.Ok(data));
 
 app.UseWebApiDocumentatorUi();
 

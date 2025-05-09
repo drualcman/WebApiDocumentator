@@ -14,5 +14,6 @@ internal class ApiEndpointInfo
 
     public List<ApiParameterInfo> Parameters { get; set; } = new();
     public string? ReturnType { get; set; }
+    public Dictionary<string, object>? ReturnSchema { get; set; }
 }
 

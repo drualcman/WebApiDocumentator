@@ -16,13 +16,9 @@ internal class CompositeMetadataProvider
 
     public List<ApiGroupInfo> GetGroupedEndpoints()
     {
-        var excludedRoutes = new[] { "/get-metadata", "/docs", "/openapi" };
-
-        // Excluir las rutas que comienzan con '/openapi'
         var allEndpoints = _providers
-            .SelectMany(p => p.GetEndpoints())
-            .Where(e => !excludedRoutes.Any(excluded => e.Route?.StartsWith(excluded, StringComparison.OrdinalIgnoreCase) == true))
-            .ToList();
+                    .SelectMany(p => p.GetEndpoints())
+                    .ToList();
 
 
         var grouped = allEndpoints

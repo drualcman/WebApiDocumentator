@@ -20,6 +20,8 @@ internal class ControllerMetadataProvider : IMetadataProvider
     {
         var result = new List<ApiEndpointInfo>();
 
+        var excludedRoutes = new[] { "/get-metadata", "/docs", "/openapi" };
+
         var controllerTypes = _assembly.GetTypes()
             .Where(t => typeof(ControllerBase).IsAssignableFrom(t) && !t.IsAbstract)
             .ToList();
