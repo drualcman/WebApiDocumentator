@@ -3,8 +3,8 @@
 @model WebApiDocumentator.Areas.Docs.Pages.IndexModel
 @{
     var selected = Model.SelectedEndpoint;
-    var method = selected?.HttpMethod ?? "GET";  // Si no hay método seleccionado, usar GET como valor predeterminado
-    var route = selected?.Route ?? "/default/route";  // Si no hay ruta seleccionada, usar una ruta predeterminada
+    var method = selected?.HttpMethod ?? "GET";
+    var route = selected?.Route ?? "/default/route";
     var version = Model.GetApiVersion();
 }
 
@@ -16,107 +16,198 @@
     <style>
         body {
             display: flex;
-            font-family: sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             margin: 0;
-            height: 100vh; /* Hacer que el body ocupe toda la pantalla */
-            overflow-x: hidden; /* Evitar desbordamiento horizontal */
+            height: 100vh;
+            overflow-x: hidden;
+            background: #f8f9fa;
         }
 
         #sidebar {
-            width: 250px;
-            background: #f2f2f2;
-            padding: 10px;
-            overflow-y: auto; /* Solo desplazamiento vertical */
+            width: 300px;
+            background: #ffffff;
+            padding: 20px;
+            border-right: 1px solid #dee2e6;
+            overflow-y: auto;
             height: 100vh;
-            min-height: 100%; /* Asegurar que ocupe todo el alto disponible */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
         #content {
             flex: 2;
-            padding: 20px;
-            overflow-y: auto; /* Solo desplazamiento vertical */
-            min-height: 100%; /* Asegurar que ocupe todo el alto disponible */
+            padding: 30px;
+            overflow-y: auto;
+            min-height: 100%;
         }
 
         #examples {
             flex: 1;
-            padding: 20px;
-            background: #fafafa;
-            border-left: 1px solid #ccc;
-            overflow-y: auto; /* Solo desplazamiento vertical */
-            min-height: 100%; /* Asegurar que ocupe todo el alto disponible */
+            padding: 30px;
+            background: #f1f3f5;
+            border-left: 1px solid #dee2e6;
+            overflow-y: auto;
+            min-height: 100%;
         }
-
 
         .http-method {
-            font-weight: bold;
-            padding: 2px 6px;
+            font-weight: 600;
+            padding: 4px 8px;
             border-radius: 4px;
-            font-size: 0.8em;
+            font-size: 0.85em;
             color: white;
+            display: inline-block;
         }
 
-        .GET {
-            background: #28a745;
-        }
-
-        .POST {
-            background: #ff9800;
-        }
-
-        .DELETE {
-            background: #dc3545;
-        }
-
-        .PUT {
-            background: #007bff;
-        }
-
-        .PATCH {
-            background: #17a2b8;
-        }
+        .GET { background: #28a745; }
+        .POST { background: #ff9800; }
+        .DELETE { background: #dc3545; }
+        .PUT { background: #007bff; }
+        .PATCH { background: #17a2b8; }
 
         a.endpoint-link {
             text-decoration: none;
-            font-size: 0.9em;
+            font-size: 0.95em;
+            color: #495057;
             display: block;
-            margin: 2px 0;
+            margin: 5px 0;
+            transition: color 0.2s;
+        }
+
+        a.endpoint-link:hover {
+            color: #007bff;
         }
 
         .selected {
-            font-weight: bold;
-            color: darkblue;
+            font-weight: 600;
+            color: #007bff;
         }
 
-        .preformatted-response {
-            background-color: #333; /* Fondo negro */
-            color: white; /* Texto blanco */
-            padding: 20px; /* Espaciado interno */
-            border-radius: 5px; /* Bordes redondeados */
-            font-family: monospace; /* Fuente de tipo monoespaciado */
-            white-space: pre-wrap; /* Asegurar que el texto largo no se desborde horizontalmente */
-            word-wrap: break-word; /* Romper palabras largas si es necesario */
-            overflow-y: auto; /* Sólo permitir desplazamiento vertical */
-            max-height: 400px; /* Limitar la altura para que no ocupe toda la página */
+        .schema-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            overflow: hidden;
         }
 
+        .schema-table th, .schema-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .schema-table th {
+            background: #e9ecef;
+            font-weight: 600;
+            color: #343a40;
+        }
+
+        .schema-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .json-viewer {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-y: auto;
+            max-height: 300px;
+            margin: 10px 0;
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .endpoint-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+            color: #343a40;
+        }
+
+        h3, h4 {
+            color: #343a40;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-family: "Consolas", "Courier New", monospace;
+        }
+
+        textarea {
+            height: 150px;
+            resize: vertical;
+        }
+
+        .error-message {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+
+        .field-error {
+            color: #dc3545;
+            font-size: 0.8em;
+            margin-top: -8px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <div id="sidebar">
-
-        <a class="endpoint-link"
-           href="/docs">
+        <a class="endpoint-link" href="/docs">
             <h3>@Model.Name</h3>
         </a>
         <h4>Endpoints</h4>
         <ul>
-            @foreach(var group in Model.Groups)
+            @foreach (var group in Model.Groups)
             {
                 <li>
                     <strong>@group.PathPrefix</strong>
                     <ul>
-                        @foreach(var endpoint in group.Endpoints)
+                        @foreach (var endpoint in group.Endpoints)
                         {
                             var isSelected = endpoint.Route == selected?.Route && endpoint.HttpMethod == selected?.HttpMethod;
                             <li>
@@ -134,12 +225,11 @@
     </div>
 
     <div id="content">
-
-        @if(selected is null)
+        @if (selected == null)
         {
             <h1>@Model.Name</h1>
             <h2>@Model.Version</h2>
-            @if(!string.IsNullOrWhiteSpace(version))
+            @if (!string.IsNullOrWhiteSpace(version))
             {
                 <a class="endpoint-link" href="/openapi/@(version).json" target="_blank">
                     OpenAPI @version
@@ -149,106 +239,156 @@
         }
         else
         {
-            <h2>Detalle del endpoint</h2>
-            <div class="endpoint">
-                <div class="http-method @selected.HttpMethod">@selected.HttpMethod</div>
-                <div><strong>Ruta:</strong> @selected.Route</div>
-                <div><strong>Descripción:</strong> @selected.Summary</div>
-                <div><strong>Retorno:</strong> @selected.ReturnType</div>
-                @if(selected.ReturnSchema != null)
-                {
-                    <div><strong>Esquema de retorno:</strong></div>
-                    <pre class="preformatted-response">@System.Text.Json.JsonSerializer.Serialize(selected.ReturnSchema, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })</pre>
-                }
-                @if(selected.Parameters.Any())
-                {
-                    <div>
-                        <strong>Parámetros:</strong>
-                        <ul>
-                            @foreach(var param in selected.Parameters)
-                            {
-                                <li>
-                                    @param.Name : @param.Type (FromBody: @param.IsFromBody)
-                                    @if(param.Schema != null)
-                                    {
-                                        <pre class="preformatted-response">@System.Text.Json.JsonSerializer.Serialize(param.Schema, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })</pre>
-                                    }
-                                </li>
-                            }
-                        </ul>
-                    </div>
-                }
+            <div class="endpoint-header">
+                <span class="http-method @selected.HttpMethod">@selected.HttpMethod</span>
+                <h2>@selected.Route</h2>
             </div>
-            <hr />
-            <h4>Probar este endpoint</h4>
+            <p>@selected.Description</p>
 
+            <h3>Parámetros</h3>
+            @if (selected.Parameters.Any())
+            {
+                <table class="schema-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Tipo</th>
+                            <th>Requerido</th>
+                            <th>Fuente</th>
+                            <th>Descripción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var param in selected.Parameters)
+                        {
+                            <tr>
+                                <td>@param.Name</td>
+                                <td>@param.Type</td>
+                                <td>@(param.IsRequired ? "Sí" : "No")</td>
+                                <td>@(param.IsFromBody ? "Body" : "Query")</td>
+                                <td>@param.Description</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <p>No hay parámetros.</p>
+            }
+
+            <h3>Respuesta</h3>
+            <p><strong>Tipo:</strong> @selected.ReturnType</p>
+            @if (selected.ReturnSchema != null)
+            {
+                <pre class="json-viewer">@System.Text.Json.JsonSerializer.Serialize(selected.ReturnSchema, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })</pre>
+            }
+            else
+            {
+                <p>No hay esquema de retorno disponible.</p>
+            }
+
+            <hr />
+            <h3>Probar este endpoint</h3>
+            @if (!ModelState.IsValid)
+            {
+                <div class="error-message">
+                    <ul>
+                        @foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                        {
+                            <li>@error.ErrorMessage</li>
+                        }
+                    </ul>
+                </div>
+            }
             <form method="post" action="/Docs?method=@selected.HttpMethod&route=@Uri.EscapeDataString(selected.Route)">
                 <input type="hidden" name="TestInput.Method" value="@method" />
                 <input type="hidden" name="TestInput.Route" value="@route" />
                 @Html.AntiForgeryToken()
 
-
-                @foreach(var param in selected.Parameters)
+                @foreach (var param in selected.Parameters)
                 {
+                    string value = Model.GenerateFlatSchema(param.Schema) ?? "";
                     <div>
-                        <label>@param.Name (@param.Type):</label><br />
-                        <input type="text" name="TestInput.Parameters[@param.Name]" />
+                        <label>@param.Name (@param.Type): @(param.IsRequired ? "Requerido" : "Opcional")</label><br />
+                        @if (param.IsFromBody)
+                        {
+                            <textarea name="TestInput.Parameters[@param.Name]"
+                                      placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value</textarea>
+                        }
+                        else
+                        {
+                            <input type="text"
+                                   name="TestInput.Parameters[@param.Name]"
+                                   value="@value"
+                                   placeholder="@(param.IsRequired ? "Requerido" : "Opcional")" />
+                        }
+                        @if (ModelState.ContainsKey($"TestInput.Parameters[{param.Name}]"))
+                        {
+                            <div class="field-error">
+                                @ModelState[$"TestInput.Parameters[{param.Name}]"].Errors.FirstOrDefault()?.ErrorMessage
+                            </div>
+                        }
                     </div>
                 }
 
                 <button type="submit">Probar</button>
             </form>
 
-            @if(Model.TestResponse != null)
+            @if (Model.TestResponse != null)
             {
                 <h4>Respuesta de prueba</h4>
-                <pre class="preformatted-response">@Model.TestResponse</pre>
+                <pre class="json-viewer">@Model.TestResponse</pre>
             }
-
         }
     </div>
 
-    @if(selected != null)
+    @if (selected != null)
     {
         <div id="examples">
             <h3>Ejemplos</h3>
 
             <h4>cURL</h4>
             <pre>
-                    curl -X @selected.HttpMethod https://api.tuweb.com@selected.Route
-                            </pre>
+curl -X @selected.HttpMethod https://api.tuweb.com@selected.Route@if (Model.ExampleBodyJson != null)
+{
+    <text> \
+  -H "Content-Type: application/json" \
+  -d '@Html.Raw(Model.ExampleBodyJson)'</text>
+}
+            </pre>
 
             <h4>C# (HttpClient)</h4>
             <pre>
-                    using var client = new HttpClient();
-                    client.BaseAddress = new Uri("https://api.tuweb.com");
-                    var response = await client.@(selected.HttpMethod)Async("@selected.Route");
-                    response.EnsureSuccessStatusCode();
-                    var content = await response.Content.ReadAsStringAsync();
-                            </pre>
+using var client = new HttpClient();
+client.BaseAddress = new Uri("https://api.tuweb.com");
+@if (Model.ExampleBodyJson != null)
+{
+    <text>var content = new StringContent(@Html.Raw(Model.ExampleBodyJson), System.Text.Encoding.UTF8, "application/json");
+var response = await client.@(selected.HttpMethod)Async("@selected.Route", content);</text>
+}
+else
+{
+    <text>var response = await client.@(selected.HttpMethod)Async("@selected.Route");</text>
+}
+response.EnsureSuccessStatusCode();
+var content = await response.Content.ReadAsStringAsync();
+            </pre>
 
             <h4>fetch (JavaScript)</h4>
             <pre>
-                    fetch("https://api.tuweb.com@selected.Route", {
-                        method: "@selected.HttpMethod"
-                    })
-                    .then(res => res.json())
-                    .then(data => console.log(data));
-                            </pre>
-
-            @if(selected.Parameters.Any())
-            {
-                <h4>Par metros esperados</h4>
-                <ul>
-                    @foreach(var param in selected.Parameters)
-                    {
-                        <li><code>@param.Name</code>: <em>@param.Type</em> (FromBody: @param.IsFromBody)</li>
-                    }
-                </ul>
-            }
+fetch("https://api.tuweb.com@selected.Route", {
+    method: "@selected.HttpMethod"@if (Model.ExampleBodyJson != null)
+    {
+        <text>,
+    headers: { "Content-Type": "application/json" },
+    body: @Html.Raw(Model.ExampleBodyJson)</text>
+}
+})
+.then(res => res.json())
+.then(data => console.log(data));
+            </pre>
         </div>
     }
-
-
 </body>
 </html>

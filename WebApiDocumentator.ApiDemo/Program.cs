@@ -49,7 +49,13 @@ app.MapGet("/weatherforecast", () =>
     return forecast;
 })
 .WithName("GetWeatherForecast");
-app.MapPost("/algo", (DocumentatorOptions data) => Results.Ok(data));
+
+/// <summary>
+/// Crea un nuevo recurso con las opciones especificadas.
+/// </summary>
+/// <param name="data">Opciones de configuración para el recurso.</param>
+/// <returns>El recurso creado.</returns>
+app.MapPost("/algo/{id}", (int id, DocumentatorOptions data, [FromQuery] string filter = "") => Results.Ok(data));
 
 app.UseWebApiDocumentatorUi();
 
