@@ -1,0 +1,16 @@
+global using Microsoft.AspNetCore.Http;
+global using Microsoft.AspNetCore.Http.Metadata;
+global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.AspNetCore.Mvc.Controllers;
+global using Microsoft.AspNetCore.Mvc.RazorPages;
+global using Microsoft.AspNetCore.Mvc.Routing;
+global using Microsoft.AspNetCore.Routing;
+global using Microsoft.Extensions.Logging;
+global using System.ComponentModel.DataAnnotations;
+global using System.Reflection;
+global using System.Text.RegularExpressions;
+global using System.Xml.Linq;
+global using WebApiDocumentator.Builders;
+global using WebApiDocumentator.Handlers;
+global using WebApiDocumentator.Helpers;
+global using WebApiDocumentator.Metadata;
