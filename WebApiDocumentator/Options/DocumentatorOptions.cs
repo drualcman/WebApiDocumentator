@@ -1,14 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace WebApiDocumentator.Options;
 
+
+/// <summary>
+/// Optiones
+/// </summary>
 public class DocumentatorOptions
 {
+    /// <summary>
+    /// Nombre corte de la api
+    /// </summary>
+    [Required]
     public string ApiName { get; set; }
+    /// <summary>
+    /// Version de la api
+    /// </summary>     
+    [Required]
     public string Version { get; set; }
+    /// <summary>
+    /// Descripcino larga de la api
+    /// </summary>   
+    [Required]
     public string Description { get; set; }
 }

@@ -30,13 +30,10 @@ internal class ControllerMetadataProvider : IMetadataProvider
             .OrderBy(t => t.FullName)
             .ToList();
 
-        Console.WriteLine($"Total de controladores detectados: {controllerTypes.Count}");
         foreach(var controllerType in controllerTypes)
         {
-            Console.WriteLine($"Controlador detectado: {controllerType.FullName}");
             if(processedControllers.Contains(controllerType))
             {
-                Console.WriteLine($"Controlador duplicado ignorado: {controllerType.FullName}");
                 continue;
             }
 
@@ -52,16 +49,13 @@ internal class ControllerMetadataProvider : IMetadataProvider
                 .OrderBy(m => m.Name)
                 .ToList();
 
-            Console.WriteLine($"Métodos en {controllerType.FullName}: {methods.Count}");
             foreach(var method in methods)
             {
                 var paramTypes = string.Join(",", method.GetParameters().Select(p => p.ParameterType.FullName ?? "Unknown"));
                 var methodKey = $"{controllerType.FullName}.{method.Name}({paramTypes})";
-                Console.WriteLine($"Método detectado: {methodKey}");
 
                 if(processedMethods.Contains(methodKey))
                 {
-                    Console.WriteLine($"Método duplicado ignorado: {methodKey}");
                     continue;
                 }
 
@@ -71,11 +65,8 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
                 if(!httpAttrs.Any())
                 {
-                    Console.WriteLine($"Método {methodKey} sin atributos HTTP, ignorado");
                     continue;
                 }
-
-                Console.WriteLine($"Procesando método: {methodKey}, Atributos HTTP: {httpAttrs.Count} ({string.Join(", ", httpAttrs.Select(a => a.GetType().Name))})");
 
                 var httpAttr = httpAttrs.First();
                 var httpMethod = httpAttr.HttpMethods.FirstOrDefault()?.ToUpper() ?? "UNKNOWN";
@@ -84,7 +75,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
                 if(excludedRoutes.Any(excluded => fullRoute.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)))
                 {
-                    Console.WriteLine($"Ruta excluida: {fullRoute}");
                     continue;
                 }
 
@@ -99,7 +89,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
                     Parameters = GetParameters(method)
                 };
 
-                Console.WriteLine($"Endpoint generado: {httpMethod} {fullRoute}, Parámetros: {endpoint.Parameters.Count}, ReturnType: {endpoint.ReturnType}");
                 result.Add(endpoint);
                 processedMethods.Add(methodKey);
             }
@@ -111,62 +100,63 @@ internal class ControllerMetadataProvider : IMetadataProvider
             .Select(g =>
             {
                 var endpoints = g.ToList();
-                if(endpoints.Count > 1)
-                {
-                    Console.WriteLine($"Duplicados detectados para {g.Key.Route} ({g.Key.HttpMethod}): {endpoints.Count} endpoints");
-                    foreach(var ep in endpoints)
-                    {
-                        Console.WriteLine($" - {ep.HttpMethod} {ep.Route}, Parámetros: {ep.Parameters.Count}, ReturnType: {ep.ReturnType}");
-                    }
-                }
                 return endpoints
                     .OrderByDescending(e => e.Parameters.Count)
                     .ThenByDescending(e => e.ReturnType != "Unknown")
                     .ThenByDescending(e => e.Summary != null && !e.Summary.Contains(" ("))
                     .First();
             })
-            .Where(e => e.ReturnType != "Unknown" || e.Parameters.Any() || e.Route == "api/simple") // Permitir api/simple sin parámetros
+            .Where(e => e.ReturnType != "Unknown" || e.Parameters.Any() || e.Route == "api/simple")
             .ToList();
-
-        Console.WriteLine($"Endpoints generados: {filteredResult.Count}");
-        foreach(var endpoint in filteredResult)
-        {
-            Console.WriteLine($"Endpoint final: {endpoint.HttpMethod} {endpoint.Route}, Parámetros: {endpoint.Parameters.Count}, ReturnType: {endpoint.ReturnType}, Summary: {endpoint.Summary}");
-        }
 
         return filteredResult;
     }
+
     private List<ApiParameterInfo> GetParameters(MethodInfo method)
     {
         var parameters = new List<ApiParameterInfo>();
+        var methodXmlKey = GetXmlMemberName(method);
 
         foreach(var param in method.GetParameters())
         {
             var fromQueryAttr = param.GetCustomAttribute<FromQueryAttribute>();
             if(fromQueryAttr != null && !param.ParameterType.IsPrimitive && param.ParameterType != typeof(string))
             {
+                // Obtener la descripción del parámetro del método
+                var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name);
+                Console.WriteLine($"Parámetro: {param.Name}, Descripción del parámetro: {paramDescription}");
+
                 foreach(var prop in param.ParameterType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
                 {
+                    var propDescription = GetXmlSummary(prop);
+                    Console.WriteLine($"Propiedad: {prop.Name}, Clave XML: P:{prop.DeclaringType?.FullName}.{prop.Name}, Descripción: {propDescription}");
+
+                    // Usar la descripción de la propiedad si existe; de lo contrario, usar la descripción del parámetro
+                    var description = !string.IsNullOrEmpty(propDescription) ? propDescription : paramDescription;
+
                     parameters.Add(new ApiParameterInfo
                     {
                         Name = prop.Name,
                         Type = GetFriendlyTypeName(prop.PropertyType),
                         IsFromBody = false,
-                        IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null, // Solo usar [Required]
-                        Description = GetXmlSummary(prop),
+                        IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null,
+                        Description = description,
                         Schema = GenerateJsonSchema(prop.PropertyType, new HashSet<Type>())
                     });
                 }
             }
             else
             {
+                var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name);
+                Console.WriteLine($"Parámetro: {param.Name}, Descripción: {paramDescription}");
+
                 parameters.Add(new ApiParameterInfo
                 {
                     Name = param.Name ?? "unnamed",
                     Type = GetFriendlyTypeName(param.ParameterType),
                     IsFromBody = param.GetCustomAttribute<FromBodyAttribute>() != null,
                     IsRequired = param.GetCustomAttribute<RequiredAttribute>() != null || !param.IsOptional,
-                    Description = GetXmlSummary(param),
+                    Description = paramDescription,
                     Schema = GenerateJsonSchema(param.ParameterType, new HashSet<Type>())
                 });
             }
@@ -200,17 +190,69 @@ internal class ControllerMetadataProvider : IMetadataProvider
     private Dictionary<string, string> LoadXmlDocumentation()
     {
         var result = new Dictionary<string, string>();
-        var xmlFile = Path.Combine(AppContext.BaseDirectory, $"{_assembly.GetName().Name}.xml");
-        if(!File.Exists(xmlFile))
-            return result;
+        var assemblies = new[] { _assembly }
+            .Concat(_assembly.GetReferencedAssemblies()
+                .Select(asm => Assembly.Load(asm)))
+            .Distinct()
+            .ToList();
 
-        var doc = XDocument.Load(xmlFile);
-        foreach(var member in doc.Descendants("member"))
+        foreach(var assembly in assemblies)
         {
-            var nameAttr = member.Attribute("name")?.Value;
-            var summary = member.Element("summary")?.Value?.Trim();
-            if(!string.IsNullOrWhiteSpace(nameAttr) && summary != null)
-                result[nameAttr] = summary;
+            var xmlFile = Path.Combine(AppContext.BaseDirectory, $"{assembly.GetName().Name}.xml");
+            Console.WriteLine($"Intentando cargar archivo XML: {xmlFile}");
+
+            if(!File.Exists(xmlFile))
+            {
+                Console.WriteLine($"Archivo XML no encontrado: {xmlFile}");
+                continue;
+            }
+
+            try
+            {
+                var doc = XDocument.Load(xmlFile);
+                Console.WriteLine($"Archivo XML cargado: {xmlFile}");
+
+                foreach(var member in doc.Descendants("member"))
+                {
+                    var nameAttr = member.Attribute("name")?.Value;
+                    if(string.IsNullOrWhiteSpace(nameAttr))
+                        continue;
+
+                    // Procesar <summary> para métodos y propiedades
+                    var summary = member.Element("summary")?.Value?.Trim();
+                    if(!string.IsNullOrWhiteSpace(summary))
+                    {
+                        result[nameAttr] = summary;
+                        Console.WriteLine($"Cargada entrada: {nameAttr}: {summary}");
+                    }
+
+                    // Procesar <param> para parámetros de métodos
+                    if(nameAttr.StartsWith("M:"))
+                    {
+                        foreach(var param in member.Elements("param"))
+                        {
+                            var paramName = param.Attribute("name")?.Value;
+                            var paramSummary = param.Value?.Trim();
+                            if(!string.IsNullOrWhiteSpace(paramName) && !string.IsNullOrWhiteSpace(paramSummary))
+                            {
+                                var paramKey = $"{nameAttr}#{paramName}";
+                                result[paramKey] = paramSummary;
+                                Console.WriteLine($"Cargada entrada: {paramKey}: {paramSummary}");
+                            }
+                        }
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"Error al cargar archivo XML {xmlFile}: {ex.Message}");
+            }
+        }
+
+        Console.WriteLine($"Entradas XML totales cargadas: {result.Count}");
+        foreach(var entry in result)
+        {
+            Console.WriteLine($" - {entry.Key}: {entry.Value}");
         }
 
         return result;
@@ -222,16 +264,19 @@ internal class ControllerMetadataProvider : IMetadataProvider
             return null;
 
         var memberId = GetXmlMemberName(member);
-        return _xmlDocs.TryGetValue(memberId, out var summary) ? summary : null;
+        Console.WriteLine($"Buscando descripción para: {memberId}");
+        var summary = _xmlDocs.TryGetValue(memberId, out var value) ? value : null;
+        Console.WriteLine($"Resultado: {summary}");
+        return summary;
     }
 
-    private string? GetXmlSummary(ParameterInfo? parameter)
+    private string? GetXmlParamSummary(string methodXmlKey, string paramName)
     {
-        if(parameter == null)
-            return null;
-
-        var memberId = GetXmlMemberName(parameter);
-        return _xmlDocs.TryGetValue(memberId, out var summary) ? summary : null;
+        var paramKey = $"{methodXmlKey}#{paramName}";
+        Console.WriteLine($"Buscando descripción para parámetro: {paramKey}");
+        var summary = _xmlDocs.TryGetValue(paramKey, out var value) ? value : null;
+        Console.WriteLine($"Resultado: {summary}");
+        return summary;
     }
 
     private static string GetXmlMemberName(MemberInfo member)
@@ -254,28 +299,11 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
         if(member is PropertyInfo property)
         {
-            return "P:" + $"{property.DeclaringType?.FullName}.{property.Name}";
+            var declaringTypeName = property.DeclaringType?.FullName?.Replace("+", ".") ?? "Unknown";
+            return $"P:{declaringTypeName}.{property.Name}";
         }
 
         return member.Name;
-    }
-
-    private static string GetXmlMemberName(ParameterInfo parameter)
-    {
-        var method = parameter.Member as MethodInfo;
-        if(method != null)
-        {
-            var paramTypes = method.GetParameters()
-                .Select(p => p.ParameterType.FullName ?? "Unknown")
-                .ToArray();
-            var methodName = $"{method.DeclaringType?.FullName}.{method.Name}";
-            if(paramTypes.Length > 0)
-                methodName += $"({string.Join(",", paramTypes)})";
-
-            return $"P:{methodName}#{parameter.Name}";
-        }
-
-        return parameter.Name;
     }
 
     private string GetFriendlyTypeName(Type type)
