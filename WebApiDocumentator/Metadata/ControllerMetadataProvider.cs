@@ -136,7 +136,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
         return filteredResult;
     }
-
     private List<ApiParameterInfo> GetParameters(MethodInfo method)
     {
         var parameters = new List<ApiParameterInfo>();
@@ -153,7 +152,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
                         Name = prop.Name,
                         Type = GetFriendlyTypeName(prop.PropertyType),
                         IsFromBody = false,
-                        IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null || !IsNullable(prop.PropertyType),
+                        IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null, // Solo usar [Required]
                         Description = GetXmlSummary(prop),
                         Schema = GenerateJsonSchema(prop.PropertyType, new HashSet<Type>())
                     });

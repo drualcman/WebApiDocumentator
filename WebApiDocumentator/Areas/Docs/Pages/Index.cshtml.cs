@@ -3,10 +3,11 @@ using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Web;
 using WebApiDocumentator.Metadata;
 using WebApiDocumentator.Models;
 using WebApiDocumentator.Options;
-using System.Web;
 
 namespace WebApiDocumentator.Areas.Docs.Pages;
 
@@ -81,6 +82,13 @@ internal class IndexModel : PageModel
 
         ExampleBodyJson = GenerateExampleBodyJson(SelectedEndpoint);
 
+        // Depuración: Inspeccionar TestInput.Parameters
+        Console.WriteLine("TestInput.Parameters recibidos:");
+        foreach(var param in TestInput.Parameters)
+        {
+            Console.WriteLine($" - {param.Key}: '{param.Value}'");
+        }
+
         // Validar parámetros requeridos
         foreach(var param in SelectedEndpoint.Parameters.Where(p => p.IsRequired))
         {
@@ -92,20 +100,29 @@ internal class IndexModel : PageModel
 
         if(!ModelState.IsValid)
         {
+            Console.WriteLine("ModelState no válido. Errores:");
+            foreach(var error in ModelState)
+            {
+                Console.WriteLine($" - {error.Key}: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
+            }
             return Page();
         }
 
         // Construir la URL con parámetros de consulta
         var queryParams = SelectedEndpoint.Parameters
-            .Where(p => !p.IsFromBody && TestInput.Parameters.ContainsKey(p.Name) && !string.IsNullOrEmpty(TestInput.Parameters[p.Name]))
-            .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(TestInput.Parameters[p.Name])}")
+            .Where(p => !p.IsFromBody && TestInput.Parameters.ContainsKey(p.Name))
+            .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(TestInput.Parameters[p.Name] ?? "")}")
             .ToList();
+
+        Console.WriteLine($"Query params generados: {string.Join(", ", queryParams)}");
 
         var requestUrl = TestInput.Route;
         if(queryParams.Any())
         {
             requestUrl += "?" + string.Join("&", queryParams);
         }
+
+        Console.WriteLine($"Request URL: {requestUrl}");
 
         _httpClient.BaseAddress = new Uri($"{Request.Scheme}://{Request.Host}{Request.PathBase}");
 
@@ -120,7 +137,6 @@ internal class IndexModel : PageModel
                 var bodyValue = TestInput.Parameters[bodyParam.Name];
                 try
                 {
-                    // Intentar parsear el JSON introducido por el usuario
                     var jsonObject = JsonSerializer.Deserialize<object>(bodyValue);
                     var json = JsonSerializer.Serialize(jsonObject, new JsonSerializerOptions { WriteIndented = true });
                     request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
@@ -155,7 +171,42 @@ internal class IndexModel : PageModel
 
             if(!response.IsSuccessStatusCode)
             {
-                ModelState.AddModelError("", $"Error en la solicitud: {response.StatusCode} - {responseContent}");
+                // Intentar parsear como Problem Details
+                try
+                {
+                    var problemDetails = JsonSerializer.Deserialize<JsonNode>(responseContent);
+                    if(problemDetails != null && problemDetails["errors"] is JsonObject errors)
+                    {
+                        foreach(var error in errors)
+                        {
+                            var paramName = error.Key;
+                            var errorMessages = error.Value as JsonArray;
+                            if(errorMessages != null && SelectedEndpoint.Parameters.Any(p => p.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                foreach(var errorMessage in errorMessages)
+                                {
+                                    if(errorMessage != null)
+                                    {
+                                        ModelState.AddModelError($"TestInput.Parameters[{paramName}]", errorMessage.ToString());
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // Errores no relacionados con parámetros específicos
+                                ModelState.AddModelError("", $"Error en la solicitud: {error.Key} - {error.Value}");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("", $"Error en la solicitud: {response.StatusCode} - {responseContent}");
+                    }
+                }
+                catch
+                {
+                    ModelState.AddModelError("", $"Error en la solicitud: {response.StatusCode} - {responseContent}");
+                }
             }
         }
         catch(HttpRequestException ex)
