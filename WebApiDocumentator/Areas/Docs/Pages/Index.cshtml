@@ -317,9 +317,9 @@
 
                 <h3>Response</h3>
                 <p><strong>Type:</strong> @selected.ReturnType</p>
-            @if(selected.ReturnSchema != null)
+            @if(!string.IsNullOrWhiteSpace(selected.ExampleJson))
             {
-                        <pre class="json-viewer">@System.Text.Json.JsonSerializer.Serialize(selected.ReturnSchema, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })</pre>
+                <pre class="json-viewer">@selected.ExampleJson</pre>
             }
             else
             {

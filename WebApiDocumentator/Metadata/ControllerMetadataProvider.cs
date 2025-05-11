@@ -74,6 +74,8 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
                                 var (parameters, description) = _descriptionBuilder.BuildParameters(method, routeParameters);
 
+                                var schema = _schemaGenerator.GenerateJsonSchema(method.ReturnType, new HashSet<Type>());
+
                                 var endpoint = new ApiEndpointInfo
                                 {
                                     HttpMethod = httpMethod,
@@ -81,8 +83,9 @@ internal class ControllerMetadataProvider : IMetadataProvider
                                     Summary = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, method)?.Trim().TrimEnd('.') ?? method.Name,
                                     Description = description,
                                     ReturnType = TypeNameHelper.GetFriendlyTypeName(method.ReturnType),
-                                    ReturnSchema = _schemaGenerator.GenerateJsonSchema(method.ReturnType, new HashSet<Type>()),
-                                    Parameters = parameters
+                                    ReturnSchema = schema,
+                                    Parameters = parameters,
+                                    ExampleJson = _schemaGenerator.GetExampleAsJsonString(schema)
                                 };
 
                                 result.Add(endpoint);

@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace WebApiDocumentator.Metadata;
+﻿namespace WebApiDocumentator.Metadata;
 
 internal class ApiEndpointInfo
 {
@@ -15,5 +9,6 @@ internal class ApiEndpointInfo
     public List<ApiParameterInfo> Parameters { get; set; } = new();
     public string? ReturnType { get; set; }
     public Dictionary<string, object>? ReturnSchema { get; set; }
+    public string ExampleJson { get; set; }
 }
 

@@ -43,7 +43,7 @@ internal class ParameterDescriptionBuilder
                     Source = paramSource,
                     IsRequired = param.GetCustomAttribute<RequiredAttribute>() != null || !param.IsOptional,
                     Description = paramDescription,
-                    Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(param.ParameterType, new HashSet<Type>())
+                    Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(param.ParameterType, new HashSet<Type>()),
                 });
             }
         }

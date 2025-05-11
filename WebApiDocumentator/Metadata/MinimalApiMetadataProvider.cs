@@ -55,6 +55,7 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
 
                     var returnType = TypeNameHelper.GetFriendlyTypeName(methodInfo.ReturnType);
                     var returnSchema = _schemaGenerator.GenerateJsonSchema(methodInfo.ReturnType, new HashSet<Type>());
+                    var returnExcample = _schemaGenerator.GetExampleAsJsonString(returnSchema);
 
                     if(typeof(IResult).IsAssignableFrom(methodInfo.ReturnType))
                     {
@@ -63,6 +64,7 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                         {
                             returnType = TypeNameHelper.GetFriendlyTypeName(resultType);
                             returnSchema = _schemaGenerator.GenerateJsonSchema(resultType, new HashSet<Type>());
+                            returnExcample = _schemaGenerator.GetExampleAsJsonString(returnSchema);
                         }
                     }
 
@@ -74,7 +76,8 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                         Description = description,
                         ReturnType = returnType,
                         Parameters = parameters,
-                        ReturnSchema = returnSchema
+                        ReturnSchema = returnSchema,
+                        ExampleJson = returnExcample
                     };
 
                     endpoints.Add(endpointInfo);

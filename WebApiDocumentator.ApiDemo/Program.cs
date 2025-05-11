@@ -74,7 +74,7 @@ app.MapPost("/algo/{id}", (int id, DocumentatorOptions data, [FromQuery] string 
     {
         data.Version = $"{id}/{data.Version}";
         data.Description = $"[{filter}]: {data.Description}";
-        return Results.Ok(data);
+        return data;
     });
 
 app.UseWebApiDocumentatorUi();
