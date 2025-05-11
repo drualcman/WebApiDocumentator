@@ -5,10 +5,12 @@ namespace WebApiDocumentator.Builders;
 internal class ParameterDescriptionBuilder
 {
     private readonly Dictionary<string, string> _xmlDocs;
+    private readonly ILogger _logger;
 
-    public ParameterDescriptionBuilder(Dictionary<string, string> xmlDocs)
+    public ParameterDescriptionBuilder(Dictionary<string, string> xmlDocs, ILogger logger)
     {
         _xmlDocs = xmlDocs;
+        _logger = logger;
     }
 
     public (List<ApiParameterInfo> Parameters, string Description) BuildParameters(
@@ -25,6 +27,13 @@ internal class ParameterDescriptionBuilder
         {
             if(parameterFilter == null || parameterFilter(param))
             {
+                // Skip invalid or compiler-generated parameter names
+                if(IsInvalidParameterName(param.Name))
+                {
+                    _logger.LogWarning("Skipping invalid parameter name '{ParamName}' for method {MethodKey}", param.Name, methodXmlKey);
+                    continue;
+                }
+
                 var paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name) ?? "Route parameter";
                 paramDescription = paramDescription.Trim().TrimEnd('.');
                 var paramType = TypeNameHelper.GetFriendlyTypeName(param.ParameterType);
@@ -57,7 +66,7 @@ internal class ParameterDescriptionBuilder
                 {
                     parameters.Add(new ApiParameterInfo
                     {
-                        Name = param.Name ?? "unnamed",
+                        Name = param.Name ?? "unnamed_parameter",
                         Type = paramType,
                         IsFromBody = param.GetCustomAttribute<FromBodyAttribute>() != null ||
                                      (metadata?.OfType<IAcceptsMetadata>()
@@ -76,6 +85,12 @@ internal class ParameterDescriptionBuilder
         // Add parameter descriptions
         foreach(var param in method.GetParameters())
         {
+            // Skip invalid parameter names in description
+            if(IsInvalidParameterName(param.Name))
+            {
+                continue;
+            }
+
             var paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name);
             if(!string.IsNullOrWhiteSpace(paramDescription))
             {
@@ -99,11 +114,22 @@ internal class ParameterDescriptionBuilder
         }
 
         var description = descriptionBuilder.ToString().TrimEnd('\n', '\r');
-        if(string.IsNullOrWhiteSpace(description))
+        if(string.IsNullOrWhiteSpace(description) && !IsInvalidParameterName(method.Name))
         {
             description = method.Name;
         }
 
         return (parameters, description);
+    }
+
+    private bool IsInvalidParameterName(string? name)
+    {
+        if(string.IsNullOrWhiteSpace(name))
+        {
+            return true;
+        }
+
+        // Check for common compiler-generated name patterns
+        return name.Contains("<") || name.Contains(">") || name.Contains("$") || name.StartsWith("b__");
     }
 }

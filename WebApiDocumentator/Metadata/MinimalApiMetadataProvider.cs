@@ -7,12 +7,12 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
     private readonly ParameterDescriptionBuilder _descriptionBuilder;
     private readonly JsonSchemaGenerator _schemaGenerator;
 
-    public MinimalApiMetadataProvider(EndpointDataSource endpointDataSource)
+    public MinimalApiMetadataProvider(EndpointDataSource endpointDataSource, ILogger<MinimalApiMetadataProvider> logger)
     {
         _endpointDataSource = endpointDataSource;
         var loader = new XmlDocumentationLoader();
         _xmlDocs = loader.LoadXmlDocumentation(Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly());
-        _descriptionBuilder = new ParameterDescriptionBuilder(_xmlDocs);
+        _descriptionBuilder = new ParameterDescriptionBuilder(_xmlDocs, logger);
         _schemaGenerator = new JsonSchemaGenerator(_xmlDocs);
     }
 

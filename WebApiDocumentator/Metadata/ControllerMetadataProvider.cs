@@ -16,7 +16,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
             .Concat(_assembly.GetReferencedAssemblies()
                 .Select(asm => Assembly.Load(asm)));
         _xmlDocs = loader.LoadXmlDocumentation(assemblies);
-        _descriptionBuilder = new ParameterDescriptionBuilder(_xmlDocs);
+        _descriptionBuilder = new ParameterDescriptionBuilder(_xmlDocs, logger);
         _schemaGenerator = new JsonSchemaGenerator(_xmlDocs);
         _logger = logger;
     }
@@ -128,7 +128,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
                     .ThenByDescending(e => e.Summary != null && !e.Summary.Contains(" ("))
                     .First();
             })
-            .Where(e => e.ReturnType != "Unknown" || e.Parameters.Any() || e.Route == "api/simple")
+            .Where(e => e.ReturnType != "Unknown" || e.Parameters.Any())
             .ToList();
 
         return filteredResult;

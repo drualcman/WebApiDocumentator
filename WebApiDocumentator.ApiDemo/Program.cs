@@ -51,7 +51,7 @@ app.MapGet("/debug/routes", (IEnumerable<EndpointDataSource> endpointSources) =>
     return Results.Ok(routes);
 }).WithName("DebugRoutes");
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/weatherforecast", (IHttpClientFactory service) =>
 {
     var forecast = Enumerable.Range(1, 5).Select(index =>
         new WeatherForecast
@@ -69,7 +69,7 @@ app.MapGet("/weatherforecast", () =>
 /// Crea un nuevo recurso con las opciones especificadas.
 /// </summary>
 /// <returns>El recurso creado.</returns>
-app.MapPost("/algo/{id}", (int id, DocumentatorOptions data, [FromQuery] string filter = "") =>
+app.MapPost("/algo/{id}", (int id, DocumentatorOptions data, IHttpClientFactory service, [FromQuery] string filter = "") =>
     {
         data.Version = $"{id}/{data.Version}";
         data.Description = $"[{filter}]: {data.Description}";

@@ -9,6 +9,8 @@ internal static class ParameterSourceResolver
             return "Query";
         if(parameter.GetCustomAttribute<FromBodyAttribute>() != null)
             return "Body";
+        if(parameter.GetCustomAttribute<FromServicesAttribute>() != null)
+            return "Service";
         return "Unknown";
     }
 
@@ -22,6 +24,8 @@ internal static class ParameterSourceResolver
             metadata.OfType<IAcceptsMetadata>()
                 .Any(m => m.RequestType == parameter.ParameterType && m.ContentTypes.Contains("application/json")))
             return "Body";
-        return "Unknown";
+        if(parameter.GetCustomAttribute<FromServicesAttribute>() != null)
+            return "Service";
+        return "Service";
     }
 }

@@ -6,9 +6,8 @@
     var method = selected?.HttpMethod ?? "GET";
     var route = selected?.Route ?? "/default/route";
     var version = Model.GetApiVersion();
-    var descriptionParts = selected?.Description?.Split("\n") ?? [];
     var summary = selected?.Summary;
-    var parameters = selected?.Description?.Split("\n") ?? [];
+    var parameters = string.IsNullOrWhiteSpace(selected?.Description) ? [] : selected?.Description?.Split("\n") ?? [];
     
 }
 
