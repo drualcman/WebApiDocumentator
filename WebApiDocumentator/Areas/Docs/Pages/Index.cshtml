@@ -6,9 +6,10 @@
     var method = selected?.HttpMethod ?? "GET";
     var route = selected?.Route ?? "/default/route";
     var version = Model.GetApiVersion();
-    var descriptionParts = selected?.Description?.Split("\nParameters:\n") ?? [];
-    var summary = descriptionParts.Length > 1 ? descriptionParts[0] : "";
-    var parameters = descriptionParts.Length > 1 ? descriptionParts[1].Split("\n").Where(p => !string.IsNullOrWhiteSpace(p)).ToList() : new List<string>();
+    var descriptionParts = selected?.Description?.Split("\n") ?? [];
+    var summary = selected?.Summary;
+    var parameters = selected?.Description?.Split("\n") ?? [];
+    
 }
 
 <!DOCTYPE html>

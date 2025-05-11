@@ -74,8 +74,28 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
                                 var (parameters, description) = _descriptionBuilder.BuildParameters(method, routeParameters);
 
-                                var schema = _schemaGenerator.GenerateJsonSchema(method.ReturnType, new HashSet<Type>());
+                                // Log if description or summary is missing
+                                if(string.IsNullOrWhiteSpace(description))
+                                {
+                                    description = $"Handles {httpMethod} requests for {fullRoute}";
+                                    _logger.LogWarning("No XML summary found for method {MethodKey}. Using fallback: {Fallback}", methodKey, description);
+                                }
 
+                                // Ensure parameter descriptions are set
+                                var methodXmlKey = XmlDocumentationHelper.GetXmlMemberName(method);
+                                foreach(var param in parameters)
+                                {
+                                    if(string.IsNullOrWhiteSpace(param.Description))
+                                    {
+                                        var paramXml = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name) ?? "Route parameter";
+                                        param.Description = paramXml.Trim().TrimEnd('.');
+                                        if(param.Description == "Route parameter")
+                                        {
+                                            _logger.LogWarning("No XML <param> documentation found for parameter {ParamName} in method {MethodKey}", param.Name, methodKey);
+                                        }
+                                    }
+                                }
+                                var schema = _schemaGenerator.GenerateJsonSchema(method.ReturnType, new HashSet<Type>());
                                 var endpoint = new ApiEndpointInfo
                                 {
                                     HttpMethod = httpMethod,

@@ -45,4 +45,16 @@ internal static class XmlDocumentationHelper
 
         return member.Name;
     }
+
+    public static string? GetXmlReturns(Dictionary<string, string> xmlDocs, MethodInfo method)
+    {
+        var key = GetXmlMemberName(method);
+        return xmlDocs.TryGetValue($"{key}#returns", out var value) ? value : null;
+    }
+
+    public static string? GetXmlRemarks(Dictionary<string, string> xmlDocs, MethodInfo method)
+    {
+        var key = GetXmlMemberName(method);
+        return xmlDocs.TryGetValue($"{key}#remarks", out var value) ? value : null;
+    }
 }
