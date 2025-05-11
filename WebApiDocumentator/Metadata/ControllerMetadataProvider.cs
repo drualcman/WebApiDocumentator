@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -11,11 +12,14 @@ internal class ControllerMetadataProvider : IMetadataProvider
 {
     private readonly Assembly _assembly;
     private readonly Dictionary<string, string> _xmlDocs;
+    private readonly ILogger<ControllerMetadataProvider> _logger;
 
-    public ControllerMetadataProvider()
+    public ControllerMetadataProvider(ILogger<ControllerMetadataProvider> logger)
     {
         _assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
         _xmlDocs = LoadXmlDocumentation();
+        _logger = logger;
+
     }
 
     public List<ApiEndpointInfo> GetEndpoints()
@@ -33,96 +37,88 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
         foreach(var controllerType in controllerTypes)
         {
-            if(processedControllers.Contains(controllerType))
+            if(!processedControllers.Contains(controllerType))
             {
-                continue;
-            }
+                processedControllers.Add(controllerType);
 
-            processedControllers.Add(controllerType);
+                var routeAttr = controllerType.GetCustomAttribute<RouteAttribute>();
+                var controllerName = controllerType.Name.EndsWith("Controller", StringComparison.OrdinalIgnoreCase)
+                    ? controllerType.Name.Substring(0, controllerType.Name.Length - "Controller".Length).ToLowerInvariant()
+                    : controllerType.Name.ToLowerInvariant();
+                var routePrefix = routeAttr?.Template?.Replace("[controller]", controllerName).ToLowerInvariant() ?? controllerName;
 
-            var routeAttr = controllerType.GetCustomAttribute<RouteAttribute>();
-            var controllerName = controllerType.Name.EndsWith("Controller", StringComparison.OrdinalIgnoreCase)
-                ? controllerType.Name.Substring(0, controllerType.Name.Length - "Controller".Length).ToLowerInvariant()
-                : controllerType.Name.ToLowerInvariant();
-            var routePrefix = routeAttr?.Template?.Replace("[controller]", controllerName).ToLowerInvariant() ?? controllerName;
-
-            var methods = controllerType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
-                .OrderBy(m => m.Name)
-                .ToList();
-
-            foreach(var method in methods)
-            {
-                var paramTypes = string.Join(",", method.GetParameters().Select(p => p.ParameterType.FullName ?? "Unknown"));
-                var methodKey = $"{controllerType.FullName}.{method.Name}({paramTypes})";
-
-                if(processedMethods.Contains(methodKey))
-                {
-                    continue;
-                }
-
-                var httpAttrs = method.GetCustomAttributes()
-                    .OfType<HttpMethodAttribute>()
+                var methods = controllerType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
+                    .OrderBy(m => m.Name)
                     .ToList();
 
-                if(!httpAttrs.Any())
+                foreach(var method in methods)
                 {
-                    continue;
+                    var paramTypes = string.Join(",", method.GetParameters().Select(p => p.ParameterType.FullName ?? "Unknown"));
+                    var methodKey = $"{controllerType.FullName}.{method.Name}({paramTypes})";
+
+                    if(!processedMethods.Contains(methodKey))
+                    {
+                        var httpAttrs = method.GetCustomAttributes()
+                            .OfType<HttpMethodAttribute>()
+                            .ToList();
+
+                        if(httpAttrs.Any())
+                        {
+                            var httpAttr = httpAttrs.First();
+                            var httpMethod = httpAttr.HttpMethods.FirstOrDefault()?.ToUpper() ?? "UNKNOWN";
+                            var methodRoute = GetMethodRoute(method).ToLowerInvariant();
+                            var fullRoute = CombineRoute(routePrefix, methodRoute).ToLowerInvariant();
+
+                            if(!excludedRoutes.Any(excluded => fullRoute.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                // Get route parameters
+                                var routeParameters = GetRouteParameters(fullRoute);
+
+                                // Get method description
+                                var methodSummary = GetXmlSummary(method) ?? method.Name;
+                                methodSummary = methodSummary.Trim().TrimEnd('.');
+
+                                // Build description with parameter information
+                                var methodXmlKey = GetXmlMemberName(method);
+                                var parameterDescriptions = new List<string>();
+                                foreach(var param in method.GetParameters())
+                                {
+                                    var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name) ?? "Route parameter";
+                                    paramDescription = paramDescription.Trim().TrimEnd('.');
+                                    var paramType = GetFriendlyTypeName(param.ParameterType);
+                                    var paramSource = GetParameterSource(param, routeParameters);
+                                    var paramInfo = $"{param.Name} ({paramType}, {paramSource}): {paramDescription}";
+                                    parameterDescriptions.Add(paramInfo);
+                                }
+
+                                // Build description with new lines
+                                var description = methodSummary;
+                                if(parameterDescriptions.Any())
+                                {
+                                    description += "\nParameters:\n" + string.Join("\n", parameterDescriptions);
+                                }
+
+                                var endpoint = new ApiEndpointInfo
+                                {
+                                    HttpMethod = httpMethod,
+                                    Route = fullRoute,
+                                    Summary = methodSummary,
+                                    Description = description,
+                                    ReturnType = GetFriendlyTypeName(method.ReturnType),
+                                    ReturnSchema = GenerateJsonSchema(method.ReturnType, new HashSet<Type>()),
+                                    Parameters = GetParameters(method, routeParameters)
+                                };
+
+                                result.Add(endpoint);
+                                processedMethods.Add(methodKey);
+                            }
+                        }
+                    }
                 }
-
-                var httpAttr = httpAttrs.First();
-                var httpMethod = httpAttr.HttpMethods.FirstOrDefault()?.ToUpper() ?? "UNKNOWN";
-                var methodRoute = GetMethodRoute(method).ToLowerInvariant();
-                var fullRoute = CombineRoute(routePrefix, methodRoute).ToLowerInvariant();
-
-                if(excludedRoutes.Any(excluded => fullRoute.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)))
-                {
-                    continue;
-                }
-
-                // Obtener parámetros de la ruta
-                var routeParameters = GetRouteParameters(fullRoute);
-
-                // Obtener la descripción del método
-                var methodSummary = GetXmlSummary(method) ?? method.Name;
-                methodSummary = methodSummary.Trim().TrimEnd('.');
-
-                // Construir la descripción con información de los parámetros
-                var methodXmlKey = GetXmlMemberName(method);
-                var parameterDescriptions = new List<string>();
-                foreach(var param in method.GetParameters())
-                {
-                    var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name) ?? "Parámetro de ruta";
-                    paramDescription = paramDescription.Trim().TrimEnd('.');
-                    var paramType = GetFriendlyTypeName(param.ParameterType);
-                    var paramSource = GetParameterSource(param, routeParameters);
-                    var paramInfo = $"- {param.Name} ({paramType}, {paramSource}): {paramDescription}";
-                    parameterDescriptions.Add(paramInfo);
-                }
-
-                // Construir la descripción con nuevas líneas
-                var description = methodSummary;
-                if(parameterDescriptions.Any())
-                {
-                    description += "\nParámetros:\n" + string.Join("\n", parameterDescriptions);
-                }
-
-                var endpoint = new ApiEndpointInfo
-                {
-                    HttpMethod = httpMethod,
-                    Route = fullRoute,
-                    Summary = methodSummary,
-                    Description = description,
-                    ReturnType = GetFriendlyTypeName(method.ReturnType),
-                    ReturnSchema = GenerateJsonSchema(method.ReturnType, new HashSet<Type>()),
-                    Parameters = GetParameters(method, routeParameters)
-                };
-
-                result.Add(endpoint);
-                processedMethods.Add(methodKey);
             }
         }
 
-        // Filtrar duplicados y endpoints inválidos
+        // Filter duplicates and invalid endpoints
         var filteredResult = result
             .GroupBy(e => (e.Route, e.HttpMethod))
             .Select(g =>
@@ -146,7 +142,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
         var matches = Regex.Matches(route, @"{([^}]+)}");
         foreach(Match match in matches)
         {
-            var paramName = match.Groups[1].Value.Split(':').First(); // Ignorar restricciones como {name:string}
+            var paramName = match.Groups[1].Value.Split(':').First(); // Ignore constraints like {name:string}
             routeParameters.Add(paramName);
         }
         return routeParameters;
@@ -174,12 +170,10 @@ internal class ControllerMetadataProvider : IMetadataProvider
             if(fromQueryAttr != null && !param.ParameterType.IsPrimitive && param.ParameterType != typeof(string))
             {
                 var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name);
-                Console.WriteLine($"Parámetro: {param.Name}, Descripción del parámetro: {paramDescription}");
 
                 foreach(var prop in param.ParameterType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
                 {
                     var propDescription = GetXmlSummary(prop);
-                    Console.WriteLine($"Propiedad: {prop.Name}, Clave XML: P:{prop.DeclaringType?.FullName}.{prop.Name}, Descripción: {propDescription}");
 
                     var description = !string.IsNullOrEmpty(propDescription) ? propDescription : paramDescription;
 
@@ -197,8 +191,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
             }
             else
             {
-                var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name) ?? "Parámetro de ruta";
-                Console.WriteLine($"Parámetro: {param.Name}, Descripción: {paramDescription}");
+                var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name) ?? "Route parameter";
 
                 parameters.Add(new ApiParameterInfo
                 {
@@ -214,11 +207,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
         }
 
         return parameters;
-    }
-
-    private bool IsNullable(Type type)
-    {
-        return Nullable.GetUnderlyingType(type) != null || type.IsClass || type.IsInterface;
     }
 
     private string CombineRoute(string prefix, string route)
@@ -250,58 +238,45 @@ internal class ControllerMetadataProvider : IMetadataProvider
         foreach(var assembly in assemblies)
         {
             var xmlFile = Path.Combine(AppContext.BaseDirectory, $"{assembly.GetName().Name}.xml");
-            Console.WriteLine($"Intentando cargar archivo XML: {xmlFile}");
 
-            if(!File.Exists(xmlFile))
+            if(File.Exists(xmlFile))
             {
-                Console.WriteLine($"Archivo XML no encontrado: {xmlFile}");
-                continue;
-            }
-
-            try
-            {
-                var doc = XDocument.Load(xmlFile);
-                Console.WriteLine($"Archivo XML cargado: {xmlFile}");
-
-                foreach(var member in doc.Descendants("member"))
+                try
                 {
-                    var nameAttr = member.Attribute("name")?.Value;
-                    if(string.IsNullOrWhiteSpace(nameAttr))
-                        continue;
+                    var doc = XDocument.Load(xmlFile);
 
-                    var summary = member.Element("summary")?.Value?.Trim();
-                    if(!string.IsNullOrWhiteSpace(summary))
+                    foreach(var member in doc.Descendants("member"))
                     {
-                        result[nameAttr] = summary;
-                        Console.WriteLine($"Cargada entrada: {nameAttr}: {summary}");
-                    }
-
-                    if(nameAttr.StartsWith("M:"))
-                    {
-                        foreach(var param in member.Elements("param"))
+                        var nameAttr = member.Attribute("name")?.Value;
+                        if(!string.IsNullOrWhiteSpace(nameAttr))
                         {
-                            var paramName = param.Attribute("name")?.Value;
-                            var paramSummary = param.Value?.Trim();
-                            if(!string.IsNullOrWhiteSpace(paramName) && !string.IsNullOrWhiteSpace(paramSummary))
+                            var summary = member.Element("summary")?.Value?.Trim();
+                            if(!string.IsNullOrWhiteSpace(summary))
                             {
-                                var paramKey = $"{nameAttr}#{paramName}";
-                                result[paramKey] = paramSummary;
-                                Console.WriteLine($"Cargada entrada: {paramKey}: {paramSummary}");
+                                result[nameAttr] = summary;
+                            }
+
+                            if(nameAttr.StartsWith("M:"))
+                            {
+                                foreach(var param in member.Elements("param"))
+                                {
+                                    var paramName = param.Attribute("name")?.Value;
+                                    var paramSummary = param.Value?.Trim();
+                                    if(!string.IsNullOrWhiteSpace(paramName) && !string.IsNullOrWhiteSpace(paramSummary))
+                                    {
+                                        var paramKey = $"{nameAttr}#{paramName}";
+                                        result[paramKey] = paramSummary;
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                catch(Exception ex)
+                {
+                    _logger.LogError(ex, $"Reading XML {xmlFile}");
+                }
             }
-            catch(Exception ex)
-            {
-                Console.WriteLine($"Error al cargar archivo XML {xmlFile}: {ex.Message}");
-            }
-        }
-
-        Console.WriteLine($"Entradas XML totales cargadas: {result.Count}");
-        foreach(var entry in result)
-        {
-            Console.WriteLine($"{entry.Key}: {entry.Value}");
         }
 
         return result;
@@ -313,18 +288,14 @@ internal class ControllerMetadataProvider : IMetadataProvider
             return null;
 
         var memberId = GetXmlMemberName(member);
-        Console.WriteLine($"Buscando descripción para: {memberId}");
         var summary = _xmlDocs.TryGetValue(memberId, out var value) ? value : null;
-        Console.WriteLine($"Resultado: {summary}");
         return summary;
     }
 
     private string? GetXmlParamSummary(string methodXmlKey, string paramName)
     {
         var paramKey = $"{methodXmlKey}#{paramName}";
-        Console.WriteLine($"Buscando descripción para parámetro: {paramKey}");
         var summary = _xmlDocs.TryGetValue(paramKey, out var value) ? value : null;
-        Console.WriteLine($"Resultado: {summary}");
         return summary;
     }
 
