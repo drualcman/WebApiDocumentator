@@ -10,7 +10,7 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
     public MinimalApiMetadataProvider(EndpointDataSource endpointDataSource, ILogger<MinimalApiMetadataProvider> logger)
     {
         _endpointDataSource = endpointDataSource;
-        var loader = new XmlDocumentationLoader();
+        var loader = new XmlDocumentationLoader(logger);
         _xmlDocs = loader.LoadXmlDocumentation(Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly());
         _descriptionBuilder = new ParameterDescriptionBuilder(_xmlDocs, logger);
         _schemaGenerator = new JsonSchemaGenerator(_xmlDocs);
@@ -88,6 +88,7 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
 
                     var endpointInfo = new ApiEndpointInfo
                     {
+                        Id = EndpointHelper.GenerateEndpointId(httpMethods[0], endpoint.RoutePattern.RawText?.ToLowerInvariant() ?? ""), // Assign unique identifier
                         Route = endpoint.RoutePattern.RawText?.ToLowerInvariant() ?? "",
                         HttpMethod = httpMethods[0],
                         Summary = summary,

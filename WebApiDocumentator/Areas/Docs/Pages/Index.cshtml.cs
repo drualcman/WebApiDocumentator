@@ -1,11 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ApiExplorer;
-using Microsoft.AspNetCore.Mvc.RazorPages;
+﻿using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Web;
-using WebApiDocumentator.Metadata;
 using WebApiDocumentator.Models;
 using WebApiDocumentator.Options;
 
@@ -17,6 +14,7 @@ internal class IndexModel : PageModel
     private readonly DocumentatorOptions _options;
     private readonly HttpClient _httpClient;
     private readonly IApiDescriptionGroupCollectionProvider _provider;
+    private readonly ILogger<IndexModel> _logger;
 
     public List<ApiGroupInfo> Groups { get; private set; } = new();
     public ApiEndpointInfo? SelectedEndpoint { get; private set; }
@@ -33,29 +31,48 @@ internal class IndexModel : PageModel
         CompositeMetadataProvider metadataProvider,
         IHttpClientFactory httpClientFactory,
         IApiDescriptionGroupCollectionProvider provider,
-        IOptions<DocumentatorOptions> options)
+        IOptions<DocumentatorOptions> options,
+        ILogger<IndexModel> logger)
     {
         _metadataProvider = metadataProvider;
         _httpClient = httpClientFactory.CreateClient("WebApiDocumentator");
         _options = options.Value;
         _provider = provider;
+        _logger = logger;
     }
 
-    public void OnGet([FromQuery] string? method, [FromQuery] string? route)
+    public void OnGet([FromQuery] string? id)
     {
         Groups = _metadataProvider.GetGroupedEndpoints();
 
-        if(!string.IsNullOrEmpty(method) && !string.IsNullOrEmpty(route))
+        if(!string.IsNullOrWhiteSpace(id))
         {
+            _logger.LogInformation("Received query Id: {Id}", id);
             SelectedEndpoint = Groups
                 .SelectMany(g => g.Endpoints)
-                .FirstOrDefault(e => e.HttpMethod.Equals(method, StringComparison.OrdinalIgnoreCase)
-                                  && e.Route.Equals(route, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(e => e.Id == id);
 
-            if(SelectedEndpoint != null)
+            if(SelectedEndpoint == null)
             {
-                ExampleBodyJson = GenerateExampleBodyJson(SelectedEndpoint);
+                _logger.LogWarning("Endpoint with Id {Id} not found. Available endpoints: {Endpoints}",
+                    id,
+                    string.Join("; ", Groups.SelectMany(g => g.Endpoints)
+                        .Select(e => $"Id={e.Id}, Method={e.HttpMethod}, Route={e.Route}")));
             }
+            else
+            {
+                _logger.LogInformation("Found endpoint: Id={Id}, Method={Method}, Route={Route}",
+                    SelectedEndpoint.Id, SelectedEndpoint.HttpMethod, SelectedEndpoint.Route);
+                ExampleBodyJson = SelectedEndpoint.ExampleJson;
+            }
+        }
+        else
+        {
+            _logger.LogInformation("No Id provided in query. Displaying default view.");
+            // Log all available endpoints for debugging
+            _logger.LogInformation("Available endpoints: {Endpoints}",
+                string.Join("; ", Groups.SelectMany(g => g.Endpoints)
+                    .Select(e => $"Id={e.Id}, Method={e.HttpMethod}, Route={e.Route}")));
         }
     }
 
@@ -63,82 +80,72 @@ internal class IndexModel : PageModel
     {
         if(string.IsNullOrEmpty(TestInput.Method) || string.IsNullOrEmpty(TestInput.Route))
         {
-            ModelState.AddModelError("", "El método y la ruta son necesarios.");
+            ModelState.AddModelError("", "Method and route are required.");
             return Page();
         }
 
         Groups = _metadataProvider.GetGroupedEndpoints();
 
+        // Use Id if available, fallback to method and route
         SelectedEndpoint = Groups
             .SelectMany(g => g.Endpoints)
-            .FirstOrDefault(e => e.HttpMethod.Equals(TestInput.Method, StringComparison.OrdinalIgnoreCase)
-                              && e.Route.Equals(TestInput.Route, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(e => e.Id == TestInput.Id ||
+                                (e.HttpMethod.Equals(TestInput.Method, StringComparison.OrdinalIgnoreCase) &&
+                                 e.Route.Equals(TestInput.Route, StringComparison.OrdinalIgnoreCase)));
 
         if(SelectedEndpoint == null)
         {
-            ModelState.AddModelError("", "No se encontró el endpoint seleccionado.");
+            ModelState.AddModelError("", "Selected endpoint not found.");
             return Page();
         }
 
-        ExampleBodyJson = GenerateExampleBodyJson(SelectedEndpoint);
+        ExampleBodyJson = SelectedEndpoint.ExampleJson;
 
-        // Depuración: Inspeccionar TestInput.Parameters
-        Console.WriteLine("TestInput.Parameters recibidos:");
-        foreach(var param in TestInput.Parameters)
-        {
-            Console.WriteLine($" - {param.Key}: '{param.Value}'");
-        }
-
-        // Validar parámetros requeridos
+        // Validate required parameters
         foreach(var param in SelectedEndpoint.Parameters.Where(p => p.IsRequired))
         {
             if(!TestInput.Parameters.ContainsKey(param.Name) || string.IsNullOrEmpty(TestInput.Parameters[param.Name]))
             {
-                ModelState.AddModelError($"TestInput.Parameters[{param.Name}]", $"El parámetro {param.Name} es requerido.");
+                ModelState.AddModelError($"TestInput.Parameters[{param.Name}]", $"Parameter {param.Name} is required.");
             }
         }
 
         if(!ModelState.IsValid)
         {
-            Console.WriteLine("ModelState no válido. Errores:");
-            foreach(var error in ModelState)
-            {
-                Console.WriteLine($" - {error.Key}: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
-            }
+            _logger.LogWarning("Invalid ModelState. Errors: {Errors}",
+                string.Join("; ", ModelState.SelectMany(e => e.Value.Errors.Select(err => $"{e.Key}: {err.ErrorMessage}"))));
             return Page();
         }
 
-        // Construir la URL con parámetros de ruta y consulta
+        // Build URL with route and query parameters
         var requestUrl = TestInput.Route;
 
-        // Manejar parámetros de ruta (Source = "Path")
+        // Handle route parameters (Source = "Path")
         foreach(var param in SelectedEndpoint.Parameters.Where(p => p.Source == "Path" && TestInput.Parameters.ContainsKey(p.Name)))
         {
             var paramValue = HttpUtility.UrlEncode(TestInput.Parameters[param.Name] ?? "");
             requestUrl = requestUrl.Replace($"{{{param.Name}}}", paramValue, StringComparison.OrdinalIgnoreCase);
-            Console.WriteLine($"Reemplazado parámetro de ruta: {{{param.Name}}} -> {paramValue}");
+            _logger.LogInformation("Replaced route parameter: {{{ParamName}}} -> {ParamValue}", param.Name, paramValue);
         }
 
-        // Manejar parámetros de consulta (Source = "Query")
+        // Handle query parameters (Source = "Query")
         var queryParams = SelectedEndpoint.Parameters
             .Where(p => p.Source == "Query" && TestInput.Parameters.ContainsKey(p.Name))
             .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(TestInput.Parameters[p.Name] ?? "")}")
             .ToList();
-
-        Console.WriteLine($"Query params generados: {string.Join(", ", queryParams)}");
 
         if(queryParams.Any())
         {
             requestUrl += "?" + string.Join("&", queryParams);
         }
 
-        Console.WriteLine($"Request URL: {requestUrl}");
+        _logger.LogInformation("Request URL: {RequestUrl}", requestUrl);
 
         _httpClient.BaseAddress = new Uri($"{Request.Scheme}://{Request.Host}{Request.PathBase}");
 
         var request = new HttpRequestMessage(new HttpMethod(TestInput.Method), requestUrl);
 
-        // Manejar parámetros IsFromBody
+        // Handle IsFromBody parameters
         if(SelectedEndpoint.Parameters.Any(p => p.IsFromBody))
         {
             var bodyParam = SelectedEndpoint.Parameters.FirstOrDefault(p => p.IsFromBody);
@@ -153,13 +160,13 @@ internal class IndexModel : PageModel
                 }
                 catch(JsonException)
                 {
-                    ModelState.AddModelError($"TestInput.Parameters[{bodyParam.Name}]", "El cuerpo debe ser un JSON válido.");
+                    ModelState.AddModelError($"TestInput.Parameters[{bodyParam.Name}]", "Body must be valid JSON.");
                     return Page();
                 }
             }
             else
             {
-                ModelState.AddModelError("", "Falta el cuerpo de la solicitud para el parámetro esperado.");
+                ModelState.AddModelError("", "Request body is missing for the expected parameter.");
                 return Page();
             }
         }
@@ -181,7 +188,7 @@ internal class IndexModel : PageModel
 
             if(!response.IsSuccessStatusCode)
             {
-                // Intentar parsear como Problem Details
+                // Try parsing as Problem Details
                 try
                 {
                     var problemDetails = JsonSerializer.Deserialize<JsonNode>(responseContent);
@@ -203,24 +210,24 @@ internal class IndexModel : PageModel
                             }
                             else
                             {
-                                ModelState.AddModelError("", $"Error en la solicitud: {error.Key} - {error.Value}");
+                                ModelState.AddModelError("", $"Request error: {error.Key} - {error.Value}");
                             }
                         }
                     }
                     else
                     {
-                        ModelState.AddModelError("", $"Error en la solicitud: {response.StatusCode} - {responseContent}");
+                        ModelState.AddModelError("", $"Request error: {response.StatusCode} - {responseContent}");
                     }
                 }
                 catch
                 {
-                    ModelState.AddModelError("", $"Error en la solicitud: {response.StatusCode} - {responseContent}");
+                    ModelState.AddModelError("", $"Request error: {response.StatusCode} - {responseContent}");
                 }
             }
         }
         catch(HttpRequestException ex)
         {
-            ModelState.AddModelError("", $"Error al enviar la solicitud: {ex.Message}");
+            ModelState.AddModelError("", $"Error sending request: {ex.Message}");
         }
 
         return Page();
@@ -229,56 +236,6 @@ internal class IndexModel : PageModel
     public string GetApiVersion()
     {
         return $"v{_provider.ApiDescriptionGroups.Version + 1}";
-    }
-
-    private string? GenerateExampleBodyJson(ApiEndpointInfo endpoint)
-    {
-        var bodyParam = endpoint.Parameters.FirstOrDefault(p => p.IsFromBody);
-        if(bodyParam?.Schema == null)
-            return null;
-
-        var example = GenerateExampleFromSchema(bodyParam.Schema);
-        return JsonSerializer.Serialize(example, new JsonSerializerOptions { WriteIndented = true });
-    }
-
-    private object GenerateExampleFromSchema(Dictionary<string, object> schema)
-    {
-        if(schema.TryGetValue("type", out var type))
-        {
-            switch(type.ToString())
-            {
-                case "object":
-                    var example = new Dictionary<string, object>();
-                    if(schema.TryGetValue("properties", out var propertiesObj) && propertiesObj is Dictionary<string, object> properties)
-                    {
-                        foreach(var prop in properties)
-                        {
-                            if(prop.Value is Dictionary<string, object> propSchema)
-                            {
-                                example[prop.Key] = GenerateExampleFromSchema(propSchema);
-                            }
-                        }
-                    }
-                    return example;
-                case "array":
-                    if(schema.TryGetValue("items", out var itemsObj) && itemsObj is Dictionary<string, object> itemsSchema)
-                    {
-                        return new[] { GenerateExampleFromSchema(itemsSchema) };
-                    }
-                    return new object[0];
-                case "string":
-                    return "string";
-                case "integer":
-                    return "integer";
-                case "number":
-                    return "number";
-                case "boolean":
-                    return "boolean";
-                default:
-                    return null!;
-            }
-        }
-        return null!;
     }
 
     public string? GenerateFlatSchema(Dictionary<string, object>? schema)

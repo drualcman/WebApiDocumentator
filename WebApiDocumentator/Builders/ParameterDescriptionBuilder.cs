@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace WebApiDocumentator.Builders;
+﻿namespace WebApiDocumentator.Builders;
 
 internal class ParameterDescriptionBuilder
 {
@@ -22,6 +20,8 @@ internal class ParameterDescriptionBuilder
         var parameters = new List<ApiParameterInfo>();
         var methodXmlKey = XmlDocumentationHelper.GetXmlMemberName(method);
 
+        // Build description with all XML tags
+        var descriptionBuilder = new StringBuilder();
         // Build parameter descriptions
         foreach(var param in method.GetParameters())
         {
@@ -42,60 +42,63 @@ internal class ParameterDescriptionBuilder
                     : ParameterSourceResolver.GetParameterSource(param, routeParameters);
 
                 var fromQueryAttr = param.GetCustomAttribute<FromQueryAttribute>();
-                if(fromQueryAttr != null && !param.ParameterType.IsPrimitive && param.ParameterType != typeof(string))
+                if(!paramSource.Equals("Service"))
                 {
-                    foreach(var prop in param.ParameterType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                    if(fromQueryAttr != null && !param.ParameterType.IsPrimitive && param.ParameterType != typeof(string))
                     {
-                        var propDescription = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, prop) ?? paramDescription;
-                        propDescription = propDescription.Trim().TrimEnd('.');
-                        var propType = TypeNameHelper.GetFriendlyTypeName(prop.PropertyType);
+                        foreach(var prop in param.ParameterType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                        {
+                            var propDescription = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, prop) ?? paramDescription;
+                            propDescription = propDescription.Trim().TrimEnd('.');
+                            var propType = TypeNameHelper.GetFriendlyTypeName(prop.PropertyType);
 
+                            parameters.Add(new ApiParameterInfo
+                            {
+                                Name = prop.Name,
+                                Type = propType,
+                                IsFromBody = false,
+                                Source = "Query",
+                                IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null,
+                                Description = propDescription,
+                                Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(prop.PropertyType, new HashSet<Type>())
+                            });
+                        }
+                    }
+                    else
+                    {
                         parameters.Add(new ApiParameterInfo
                         {
-                            Name = prop.Name,
-                            Type = propType,
-                            IsFromBody = false,
-                            Source = "Query",
-                            IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null,
-                            Description = propDescription,
-                            Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(prop.PropertyType, new HashSet<Type>())
+                            Name = param.Name ?? "unnamed_parameter",
+                            Type = paramType,
+                            IsFromBody = param.GetCustomAttribute<FromBodyAttribute>() != null ||
+                                         (metadata?.OfType<IAcceptsMetadata>()
+                                             .Any(m => m.RequestType == param.ParameterType && m.ContentTypes.Contains("application/json")) ?? false),
+                            Source = paramSource,
+                            IsRequired = param.GetCustomAttribute<RequiredAttribute>() != null || !param.IsOptional,
+                            Description = paramDescription,
+                            Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(param.ParameterType, new HashSet<Type>())
                         });
                     }
                 }
                 else
                 {
-                    parameters.Add(new ApiParameterInfo
-                    {
-                        Name = param.Name ?? "unnamed_parameter",
-                        Type = paramType,
-                        IsFromBody = param.GetCustomAttribute<FromBodyAttribute>() != null ||
-                                     (metadata?.OfType<IAcceptsMetadata>()
-                                         .Any(m => m.RequestType == param.ParameterType && m.ContentTypes.Contains("application/json")) ?? false),
-                        Source = paramSource,
-                        IsRequired = param.GetCustomAttribute<RequiredAttribute>() != null || !param.IsOptional,
-                        Description = paramDescription,
-                        Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(param.ParameterType, new HashSet<Type>())
-                    });
+                    descriptionBuilder.AppendLine($"Service: {TypeNameHelper.GetFriendlyTypeName(param.ParameterType)}");
                 }
             }
         }
 
-        // Build description with all XML tags
-        var descriptionBuilder = new StringBuilder();
         // Add parameter descriptions
         foreach(var param in method.GetParameters())
         {
             // Skip invalid parameter names in description
-            if(IsInvalidParameterName(param.Name))
+            if(!IsInvalidParameterName(param.Name))
             {
-                continue;
-            }
-
-            var paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name);
-            if(!string.IsNullOrWhiteSpace(paramDescription))
-            {
-                var paramType = TypeNameHelper.GetFriendlyTypeName(param.ParameterType);
-                descriptionBuilder.AppendLine($"{param.Name} ({paramType}): {paramDescription.Trim().TrimEnd('.')}");
+                var paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name);
+                if(!string.IsNullOrWhiteSpace(paramDescription))
+                {
+                    var paramType = TypeNameHelper.GetFriendlyTypeName(param.ParameterType);
+                    descriptionBuilder.AppendLine($"{param.Name} ({paramType}): {paramDescription.Trim().TrimEnd('.')}");
+                }
             }
         }
 

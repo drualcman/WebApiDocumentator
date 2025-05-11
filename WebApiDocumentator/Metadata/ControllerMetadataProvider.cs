@@ -98,6 +98,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
                                 var schema = _schemaGenerator.GenerateJsonSchema(method.ReturnType, new HashSet<Type>());
                                 var endpoint = new ApiEndpointInfo
                                 {
+                                    Id = EndpointHelper.GenerateEndpointId(httpMethod, fullRoute), // Hash-based ID
                                     HttpMethod = httpMethod,
                                     Route = fullRoute,
                                     Summary = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, method)?.Trim().TrimEnd('.') ?? method.Name,
