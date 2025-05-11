@@ -11,9 +11,10 @@ public class TestController : ControllerBase
     /// </summary>
     /// <param name="options">Opciones de configuración pasadas como parámetros de consulta.</param>
     /// <returns>Las opciones recibidas.</returns>
-    [HttpGet]
-    public IActionResult GetOptions([FromQuery] DocumentatorOptions options)
+    [HttpGet("{name}")]
+    public IActionResult GetOptions(string name, [FromQuery] DocumentatorOptions options)
     {
+        options.ApiName = $"{name}: {options.ApiName}";
         return Ok(options);
     }
 }

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc.Routing;
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace WebApiDocumentator.Metadata;
@@ -16,6 +17,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
         _assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
         _xmlDocs = LoadXmlDocumentation();
     }
+
     public List<ApiEndpointInfo> GetEndpoints()
     {
         var result = new List<ApiEndpointInfo>();
@@ -77,9 +79,11 @@ internal class ControllerMetadataProvider : IMetadataProvider
                     continue;
                 }
 
+                // Obtener parámetros de la ruta
+                var routeParameters = GetRouteParameters(fullRoute);
+
                 // Obtener la descripción del método
                 var methodSummary = GetXmlSummary(method) ?? method.Name;
-                // Normalizar: eliminar punto final si existe
                 methodSummary = methodSummary.Trim().TrimEnd('.');
 
                 // Construir la descripción con información de los parámetros
@@ -87,17 +91,12 @@ internal class ControllerMetadataProvider : IMetadataProvider
                 var parameterDescriptions = new List<string>();
                 foreach(var param in method.GetParameters())
                 {
-                    var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name);
-                    if(!string.IsNullOrEmpty(paramDescription))
-                    {
-                        // Normalizar: eliminar punto final si existe
-                        paramDescription = paramDescription.Trim().TrimEnd('.');
-                        var paramType = GetFriendlyTypeName(param.ParameterType);
-                        var paramSource = param.GetCustomAttribute<FromQueryAttribute>() != null ? "Query" :
-                                         param.GetCustomAttribute<FromBodyAttribute>() != null ? "Body" : "Unknown";
-                        var paramInfo = $"{param.Name} ({paramType}, {paramSource}): {paramDescription}";
-                        parameterDescriptions.Add(paramInfo);
-                    }
+                    var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name) ?? "Parámetro de ruta";
+                    paramDescription = paramDescription.Trim().TrimEnd('.');
+                    var paramType = GetFriendlyTypeName(param.ParameterType);
+                    var paramSource = GetParameterSource(param, routeParameters);
+                    var paramInfo = $"- {param.Name} ({paramType}, {paramSource}): {paramDescription}";
+                    parameterDescriptions.Add(paramInfo);
                 }
 
                 // Construir la descripción con nuevas líneas
@@ -115,7 +114,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
                     Description = description,
                     ReturnType = GetFriendlyTypeName(method.ReturnType),
                     ReturnSchema = GenerateJsonSchema(method.ReturnType, new HashSet<Type>()),
-                    Parameters = GetParameters(method)
+                    Parameters = GetParameters(method, routeParameters)
                 };
 
                 result.Add(endpoint);
@@ -141,7 +140,30 @@ internal class ControllerMetadataProvider : IMetadataProvider
         return filteredResult;
     }
 
-    private List<ApiParameterInfo> GetParameters(MethodInfo method)
+    private HashSet<string> GetRouteParameters(string route)
+    {
+        var routeParameters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var matches = Regex.Matches(route, @"{([^}]+)}");
+        foreach(Match match in matches)
+        {
+            var paramName = match.Groups[1].Value.Split(':').First(); // Ignorar restricciones como {name:string}
+            routeParameters.Add(paramName);
+        }
+        return routeParameters;
+    }
+
+    private string GetParameterSource(ParameterInfo parameter, HashSet<string> routeParameters)
+    {
+        if(routeParameters.Contains(parameter.Name, StringComparer.OrdinalIgnoreCase))
+            return "Path";
+        if(parameter.GetCustomAttribute<FromQueryAttribute>() != null)
+            return "Query";
+        if(parameter.GetCustomAttribute<FromBodyAttribute>() != null)
+            return "Body";
+        return "Unknown";
+    }
+
+    private List<ApiParameterInfo> GetParameters(MethodInfo method, HashSet<string> routeParameters)
     {
         var parameters = new List<ApiParameterInfo>();
         var methodXmlKey = GetXmlMemberName(method);
@@ -151,7 +173,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
             var fromQueryAttr = param.GetCustomAttribute<FromQueryAttribute>();
             if(fromQueryAttr != null && !param.ParameterType.IsPrimitive && param.ParameterType != typeof(string))
             {
-                // Obtener la descripción del parámetro del método
                 var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name);
                 Console.WriteLine($"Parámetro: {param.Name}, Descripción del parámetro: {paramDescription}");
 
@@ -160,7 +181,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
                     var propDescription = GetXmlSummary(prop);
                     Console.WriteLine($"Propiedad: {prop.Name}, Clave XML: P:{prop.DeclaringType?.FullName}.{prop.Name}, Descripción: {propDescription}");
 
-                    // Usar la descripción de la propiedad si existe; de lo contrario, usar la descripción del parámetro
                     var description = !string.IsNullOrEmpty(propDescription) ? propDescription : paramDescription;
 
                     parameters.Add(new ApiParameterInfo
@@ -168,6 +188,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
                         Name = prop.Name,
                         Type = GetFriendlyTypeName(prop.PropertyType),
                         IsFromBody = false,
+                        Source = "Query",
                         IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null,
                         Description = description,
                         Schema = GenerateJsonSchema(prop.PropertyType, new HashSet<Type>())
@@ -176,7 +197,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
             }
             else
             {
-                var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name);
+                var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name) ?? "Parámetro de ruta";
                 Console.WriteLine($"Parámetro: {param.Name}, Descripción: {paramDescription}");
 
                 parameters.Add(new ApiParameterInfo
@@ -184,6 +205,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
                     Name = param.Name ?? "unnamed",
                     Type = GetFriendlyTypeName(param.ParameterType),
                     IsFromBody = param.GetCustomAttribute<FromBodyAttribute>() != null,
+                    Source = GetParameterSource(param, routeParameters),
                     IsRequired = param.GetCustomAttribute<RequiredAttribute>() != null || !param.IsOptional,
                     Description = paramDescription,
                     Schema = GenerateJsonSchema(param.ParameterType, new HashSet<Type>())
@@ -247,7 +269,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
                     if(string.IsNullOrWhiteSpace(nameAttr))
                         continue;
 
-                    // Procesar <summary> para métodos y propiedades
                     var summary = member.Element("summary")?.Value?.Trim();
                     if(!string.IsNullOrWhiteSpace(summary))
                     {
@@ -255,7 +276,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
                         Console.WriteLine($"Cargada entrada: {nameAttr}: {summary}");
                     }
 
-                    // Procesar <param> para parámetros de métodos
                     if(nameAttr.StartsWith("M:"))
                     {
                         foreach(var param in member.Elements("param"))

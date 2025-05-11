@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Controllers; // Añadido para ControllerActionDescriptor
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using System.ComponentModel.DataAnnotations;
@@ -21,6 +21,20 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
         _xmlDocs = LoadXmlDocumentation();
     }
 
+    private string GetParameterSource(ParameterInfo parameter, HashSet<string> routeParameters, EndpointMetadataCollection metadata)
+    {
+        if(routeParameters.Contains(parameter.Name, StringComparer.OrdinalIgnoreCase))
+            return "Path";
+        if(parameter.GetCustomAttribute<FromQueryAttribute>() != null)
+            return "Query";
+        if(parameter.GetCustomAttribute<FromBodyAttribute>() != null ||
+            metadata.OfType<IAcceptsMetadata>()
+                .Any(m => m.RequestType == parameter.ParameterType && m.ContentTypes.Contains("application/json")))
+            return "Body";
+        return "Unknown";
+    }
+
+    // Fragmento de GetEndpoints
     public List<ApiEndpointInfo> GetEndpoints()
     {
         var endpoints = new List<ApiEndpointInfo>();
@@ -29,8 +43,8 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
         var endpointToTrace = _endpointDataSource.Endpoints
             .OfType<RouteEndpoint>()
             .Where(e =>
-                !e.Metadata.OfType<CompiledPageActionDescriptor>().Any() && // Excluir páginas Razor
-                !e.Metadata.OfType<ControllerActionDescriptor>().Any() &&   // Excluir endpoints de controladores
+                !e.Metadata.OfType<CompiledPageActionDescriptor>().Any() &&
+                !e.Metadata.OfType<ControllerActionDescriptor>().Any() &&
                 !excludedRoutes.Any(excluded => e.RoutePattern.RawText?.StartsWith(excluded, StringComparison.OrdinalIgnoreCase) == true))
             .ToList();
 
@@ -51,29 +65,61 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                 .OfType<MethodInfo>()
                 .FirstOrDefault();
 
+            var routeParameters = endpoint.RoutePattern.Parameters
+                .Select(p => p.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
             var parameters = new List<ApiParameterInfo>();
             string returnType = "Unknown";
             Dictionary<string, object>? returnSchema = null;
 
             Console.WriteLine($"Procesando endpoint: {httpMethods[0]} {endpoint.RoutePattern.RawText}, DisplayName: {endpoint.DisplayName}");
 
+            string? methodSummary = null;
+            string methodXmlKey = null;
+
             if(methodInfo != null)
             {
+                methodSummary = GetXmlSummary(methodInfo) ?? endpoint.DisplayName;
+                methodSummary = methodSummary?.Trim().TrimEnd('.');
+                methodXmlKey = GetXmlMemberName(methodInfo);
+
+                var parameterDescriptions = new List<string>();
                 parameters = methodInfo.GetParameters()
                     .Where(p => !IsHttpContextOrService(p.ParameterType))
-                    .Select(p => new ApiParameterInfo
+                    .Select(p =>
                     {
-                        Name = p.Name ?? "unnamed",
-                        Type = GetFriendlyTypeName(p.ParameterType),
-                        IsFromBody = p.GetCustomAttribute<FromBodyAttribute>() != null ||
-                                     endpoint.Metadata
-                                         .OfType<AcceptsMetadata>()
-                                         .Any(m => m.RequestType == p.ParameterType && m.ContentTypes.Contains("application/json")),
-                        IsRequired = p.GetCustomAttribute<RequiredAttribute>() != null || !p.IsOptional,
-                        Description = GetXmlSummary(p),
-                        Schema = GenerateJsonSchema(p.ParameterType, new HashSet<Type>())
+                        var paramDescription = GetXmlParamSummary(methodXmlKey, p.Name);
+                        if(!string.IsNullOrEmpty(paramDescription))
+                        {
+                            paramDescription = paramDescription.Trim().TrimEnd('.');
+                            var paramType = GetFriendlyTypeName(p.ParameterType);
+                            var paramSource = GetParameterSource(p, routeParameters, endpoint.Metadata);
+                            var paramInfo = $"- {p.Name} ({paramType}, {paramSource}): {paramDescription}";
+                            parameterDescriptions.Add(paramInfo);
+                        }
+
+                        return new ApiParameterInfo
+                        {
+                            Name = p.Name ?? "unnamed",
+                            Type = GetFriendlyTypeName(p.ParameterType),
+                            IsFromBody = p.GetCustomAttribute<FromBodyAttribute>() != null ||
+                                         endpoint.Metadata.OfType<IAcceptsMetadata>()
+                                             .Any(m => m.RequestType == p.ParameterType && m.ContentTypes.Contains("application/json")),
+                            Source = GetParameterSource(p, routeParameters, endpoint.Metadata),
+                            IsRequired = p.GetCustomAttribute<RequiredAttribute>() != null || !p.IsOptional,
+                            Description = paramDescription,
+                            Schema = GenerateJsonSchema(p.ParameterType, new HashSet<Type>())
+                        };
                     })
                     .ToList();
+
+                // Construir la descripción del endpoint
+                var description = methodSummary;
+                if(parameterDescriptions.Any())
+                {
+                    description += "\nParámetros:\n" + string.Join("\n", parameterDescriptions);
+                }
 
                 returnType = GetFriendlyTypeName(methodInfo.ReturnType);
                 returnSchema = GenerateJsonSchema(methodInfo.ReturnType, new HashSet<Type>());
@@ -87,46 +133,27 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                         returnSchema = GenerateJsonSchema(resultType, new HashSet<Type>());
                     }
                 }
-            }
-            else
-            {
-                var acceptsMetadata = endpoint.Metadata
-                    .OfType<AcceptsMetadata>()
-                    .FirstOrDefault();
 
-                if(acceptsMetadata != null)
+                var endpointInfo = new ApiEndpointInfo
                 {
-                    parameters.Add(new ApiParameterInfo
-                    {
-                        Name = "body",
-                        Type = GetFriendlyTypeName(acceptsMetadata.RequestType),
-                        IsFromBody = acceptsMetadata.ContentTypes.Contains("application/json"),
-                        IsRequired = true,
-                        Description = $"Body parameter of type {GetFriendlyTypeName(acceptsMetadata.RequestType)}",
-                        Schema = GenerateJsonSchema(acceptsMetadata.RequestType, new HashSet<Type>())
-                    });
-                }
+                    Route = endpoint.RoutePattern.RawText?.ToLowerInvariant() ?? "",
+                    HttpMethod = httpMethods[0],
+                    Summary = methodSummary,
+                    Description = description,
+                    ReturnType = returnType,
+                    Parameters = parameters,
+                    ReturnSchema = returnSchema
+                };
+
+                Console.WriteLine($"Endpoint generado: {endpointInfo.HttpMethod} {endpointInfo.Route}, Parámetros: {endpointInfo.Parameters.Count}, ReturnType: {endpointInfo.ReturnType}");
+                endpoints.Add(endpointInfo);
             }
-
-            var endpointInfo = new ApiEndpointInfo
-            {
-                Route = endpoint.RoutePattern.RawText?.ToLowerInvariant() ?? "", // Normalizar a minúsculas
-                HttpMethod = httpMethods[0],
-                Summary = GetMinimalApiSummary(endpoint),
-                Description = GetXmlSummary(methodInfo),
-                ReturnType = returnType,
-                Parameters = parameters,
-                ReturnSchema = returnSchema
-            };
-
-            Console.WriteLine($"Endpoint generado: {endpointInfo.HttpMethod} {endpointInfo.Route}, Parámetros: {endpointInfo.Parameters.Count}, ReturnType: {endpointInfo.ReturnType}");
-            endpoints.Add(endpointInfo);
+            // ... (resto del método sin cambios)
         }
 
         Console.WriteLine($"Total de endpoints Minimal API generados: {endpoints.Count}");
         return endpoints;
     }
-
     private string? GetMinimalApiSummary(RouteEndpoint endpoint)
     {
         return endpoint.DisplayName;
@@ -259,17 +286,53 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
         var result = new Dictionary<string, string>();
         var xmlFile = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetEntryAssembly()?.GetName().Name}.xml");
         if(!File.Exists(xmlFile))
-            return result;
-
-        var doc = XDocument.Load(xmlFile);
-        foreach(var member in doc.Descendants("member"))
         {
-            var nameAttr = member.Attribute("name")?.Value;
-            var summary = member.Element("summary")?.Value?.Trim();
-            if(!string.IsNullOrWhiteSpace(nameAttr) && summary != null)
-                result[nameAttr] = summary;
+            Console.WriteLine($"Archivo XML no encontrado: {xmlFile}");
+            return result;
         }
 
+        try
+        {
+            var doc = XDocument.Load(xmlFile);
+            Console.WriteLine($"Archivo XML cargado: {xmlFile}");
+
+            foreach(var member in doc.Descendants("member"))
+            {
+                var nameAttr = member.Attribute("name")?.Value;
+                if(string.IsNullOrWhiteSpace(nameAttr))
+                    continue;
+
+                // Procesar <summary> para métodos
+                var summary = member.Element("summary")?.Value?.Trim();
+                if(!string.IsNullOrWhiteSpace(summary))
+                {
+                    result[nameAttr] = summary;
+                    Console.WriteLine($"Cargada entrada: {nameAttr}: {summary}");
+                }
+
+                // Procesar <param> para parámetros
+                if(nameAttr.StartsWith("M:"))
+                {
+                    foreach(var param in member.Elements("param"))
+                    {
+                        var paramName = param.Attribute("name")?.Value;
+                        var paramSummary = param.Value?.Trim();
+                        if(!string.IsNullOrWhiteSpace(paramName) && !string.IsNullOrWhiteSpace(paramSummary))
+                        {
+                            var paramKey = $"{nameAttr}#{paramName}";
+                            result[paramKey] = paramSummary;
+                            Console.WriteLine($"Cargada entrada: {paramKey}: {paramSummary}");
+                        }
+                    }
+                }
+            }
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine($"Error al cargar archivo XML {xmlFile}: {ex.Message}");
+        }
+
+        Console.WriteLine($"Entradas XML totales cargadas: {result.Count}");
         return result;
     }
 
@@ -279,16 +342,22 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
             return null;
 
         var memberId = GetXmlMemberName(member);
-        return _xmlDocs.TryGetValue(memberId, out var summary) ? summary : null;
+        Console.WriteLine($"Buscando descripción para: {memberId}");
+        var summary = _xmlDocs.TryGetValue(memberId, out var value) ? value : null;
+        Console.WriteLine($"Resultado: {summary}");
+        return summary;
     }
 
-    private string? GetXmlSummary(ParameterInfo? parameter)
+    private string? GetXmlParamSummary(string methodXmlKey, string? paramName)
     {
-        if(parameter == null)
+        if(string.IsNullOrWhiteSpace(methodXmlKey) || string.IsNullOrWhiteSpace(paramName))
             return null;
 
-        var memberId = GetXmlMemberName(parameter);
-        return _xmlDocs.TryGetValue(memberId, out var summary) ? summary : null;
+        var paramKey = $"{methodXmlKey}#{paramName}";
+        Console.WriteLine($"Buscando descripción para parámetro: {paramKey}");
+        var summary = _xmlDocs.TryGetValue(paramKey, out var value) ? value : null;
+        Console.WriteLine($"Resultado: {summary}");
+        return summary;
     }
 
     private static string GetXmlMemberName(MemberInfo member)
@@ -299,7 +368,7 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
         if(member is MethodInfo method)
         {
             var paramTypes = method.GetParameters()
-                .Select(p => p.ParameterType.FullName)
+                .Select(p => p.ParameterType.FullName ?? "Unknown")
                 .ToArray();
 
             var methodName = $"{method.DeclaringType?.FullName}.{method.Name}";
@@ -315,24 +384,5 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
         }
 
         return member.Name;
-    }
-
-    private static string GetXmlMemberName(ParameterInfo parameter)
-    {
-        var method = parameter.Member as MethodInfo;
-        if(method != null)
-        {
-            var paramTypes = method.GetParameters()
-                .Select(p => p.ParameterType.FullName)
-                .ToArray();
-            var methodName = $"{method.DeclaringType?.FullName}.{method.Name}";
-            if(paramTypes.Length > 0)
-                methodName += $"({string.Join(",", paramTypes)})";
-
-            var paramIndex = Array.IndexOf(method.GetParameters(), parameter);
-            return $"P:{methodName}#{parameter.Name}";
-        }
-
-        return parameter.Name;
     }
 }

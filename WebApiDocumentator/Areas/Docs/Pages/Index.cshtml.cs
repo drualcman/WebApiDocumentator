@@ -108,15 +108,25 @@ internal class IndexModel : PageModel
             return Page();
         }
 
-        // Construir la URL con parámetros de consulta
+        // Construir la URL con parámetros de ruta y consulta
+        var requestUrl = TestInput.Route;
+
+        // Manejar parámetros de ruta (Source = "Path")
+        foreach(var param in SelectedEndpoint.Parameters.Where(p => p.Source == "Path" && TestInput.Parameters.ContainsKey(p.Name)))
+        {
+            var paramValue = HttpUtility.UrlEncode(TestInput.Parameters[param.Name] ?? "");
+            requestUrl = requestUrl.Replace($"{{{param.Name}}}", paramValue, StringComparison.OrdinalIgnoreCase);
+            Console.WriteLine($"Reemplazado parámetro de ruta: {{{param.Name}}} -> {paramValue}");
+        }
+
+        // Manejar parámetros de consulta (Source = "Query")
         var queryParams = SelectedEndpoint.Parameters
-            .Where(p => !p.IsFromBody && TestInput.Parameters.ContainsKey(p.Name))
+            .Where(p => p.Source == "Query" && TestInput.Parameters.ContainsKey(p.Name))
             .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(TestInput.Parameters[p.Name] ?? "")}")
             .ToList();
 
         Console.WriteLine($"Query params generados: {string.Join(", ", queryParams)}");
 
-        var requestUrl = TestInput.Route;
         if(queryParams.Any())
         {
             requestUrl += "?" + string.Join("&", queryParams);
@@ -193,7 +203,6 @@ internal class IndexModel : PageModel
                             }
                             else
                             {
-                                // Errores no relacionados con parámetros específicos
                                 ModelState.AddModelError("", $"Error en la solicitud: {error.Key} - {error.Value}");
                             }
                         }
@@ -258,13 +267,13 @@ internal class IndexModel : PageModel
                     }
                     return new object[0];
                 case "string":
-                    return "string"; // Estilo Swagger
+                    return "string";
                 case "integer":
-                    return "integer"; // Estilo Swagger
+                    return "integer";
                 case "number":
-                    return "number"; // Estilo Swagger
+                    return "number";
                 case "boolean":
-                    return "boolean"; // Estilo Swagger
+                    return "boolean";
                 default:
                     return null!;
             }

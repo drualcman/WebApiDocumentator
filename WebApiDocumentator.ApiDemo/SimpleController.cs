@@ -6,6 +6,6 @@ namespace WebApiDocumentator.ApiDemo;
 [ApiController]
 public class SimpleController : ControllerBase
 {
-    [HttpGet]
-    public IActionResult Get() => Ok("Hello");
+    [HttpGet("{name}")]
+    public IActionResult Get(string name) => Ok($"Hello {name}!");
 }

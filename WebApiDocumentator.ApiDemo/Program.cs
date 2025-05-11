@@ -70,7 +70,12 @@ app.MapGet("/weatherforecast", () =>
 /// </summary>
 /// <param name="data">Opciones de configuración para el recurso.</param>
 /// <returns>El recurso creado.</returns>
-app.MapPost("/algo/{id}", (int id, DocumentatorOptions data, [FromQuery] string filter = "") => Results.Ok(data));
+app.MapPost("/algo/{id}", (int id, DocumentatorOptions data, [FromQuery] string filter = "") =>
+    {
+        data.Version = $"{id}/{data.Version}";
+        data.Description = $"[{filter}]: {data.Description}";
+        return Results.Ok(data);
+    });
 
 app.UseWebApiDocumentatorUi();
 
