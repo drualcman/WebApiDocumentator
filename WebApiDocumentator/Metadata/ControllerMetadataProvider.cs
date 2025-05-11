@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc.Routing;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing;
-using System.Reflection;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using System.ComponentModel.DataAnnotations;
+using System.Reflection;
 using System.Xml.Linq;
 
 namespace WebApiDocumentator.Metadata;
@@ -22,60 +21,171 @@ internal class ControllerMetadataProvider : IMetadataProvider
     {
         var result = new List<ApiEndpointInfo>();
         var excludedRoutes = new[] { "/get-metadata", "/openapi" };
+        var processedControllers = new HashSet<Type>();
+        var processedMethods = new HashSet<string>();
 
         var controllerTypes = _assembly.GetTypes()
-            .Where(t => typeof(ControllerBase).IsAssignableFrom(t) && !t.IsAbstract)
+            .Where(t => typeof(ControllerBase).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface)
+            .Distinct()
+            .OrderBy(t => t.FullName)
             .ToList();
 
+        Console.WriteLine($"Total de controladores detectados: {controllerTypes.Count}");
         foreach(var controllerType in controllerTypes)
         {
-            var routeAttr = controllerType.GetCustomAttribute<RouteAttribute>();
-            var routePrefix = routeAttr?.Template ?? "[controller]";
-
-            foreach(var method in controllerType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly))
+            Console.WriteLine($"Controlador detectado: {controllerType.FullName}");
+            if(processedControllers.Contains(controllerType))
             {
-                var httpAttr = method.GetCustomAttributes()
-                    .FirstOrDefault(attr => attr is IHttpMethodMetadata) as Attribute;
+                Console.WriteLine($"Controlador duplicado ignorado: {controllerType.FullName}");
+                continue;
+            }
 
-                if(httpAttr == null)
+            processedControllers.Add(controllerType);
+
+            var routeAttr = controllerType.GetCustomAttribute<RouteAttribute>();
+            var controllerName = controllerType.Name.EndsWith("Controller", StringComparison.OrdinalIgnoreCase)
+                ? controllerType.Name.Substring(0, controllerType.Name.Length - "Controller".Length).ToLowerInvariant()
+                : controllerType.Name.ToLowerInvariant();
+            var routePrefix = routeAttr?.Template?.Replace("[controller]", controllerName).ToLowerInvariant() ?? controllerName;
+
+            var methods = controllerType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
+                .OrderBy(m => m.Name)
+                .ToList();
+
+            Console.WriteLine($"Métodos en {controllerType.FullName}: {methods.Count}");
+            foreach(var method in methods)
+            {
+                var paramTypes = string.Join(",", method.GetParameters().Select(p => p.ParameterType.FullName ?? "Unknown"));
+                var methodKey = $"{controllerType.FullName}.{method.Name}({paramTypes})";
+                Console.WriteLine($"Método detectado: {methodKey}");
+
+                if(processedMethods.Contains(methodKey))
+                {
+                    Console.WriteLine($"Método duplicado ignorado: {methodKey}");
                     continue;
+                }
 
-                var httpMethod = httpAttr.GetType().Name.Replace("Attribute", "").ToUpper();
-                var methodRoute = GetMethodRoute(method);
-                var fullRoute = CombineRoute(routePrefix, methodRoute);
+                var httpAttrs = method.GetCustomAttributes()
+                    .OfType<HttpMethodAttribute>()
+                    .ToList();
+
+                if(!httpAttrs.Any())
+                {
+                    Console.WriteLine($"Método {methodKey} sin atributos HTTP, ignorado");
+                    continue;
+                }
+
+                Console.WriteLine($"Procesando método: {methodKey}, Atributos HTTP: {httpAttrs.Count} ({string.Join(", ", httpAttrs.Select(a => a.GetType().Name))})");
+
+                var httpAttr = httpAttrs.First();
+                var httpMethod = httpAttr.HttpMethods.FirstOrDefault()?.ToUpper() ?? "UNKNOWN";
+                var methodRoute = GetMethodRoute(method).ToLowerInvariant();
+                var fullRoute = CombineRoute(routePrefix, methodRoute).ToLowerInvariant();
 
                 if(excludedRoutes.Any(excluded => fullRoute.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)))
+                {
+                    Console.WriteLine($"Ruta excluida: {fullRoute}");
                     continue;
+                }
 
                 var endpoint = new ApiEndpointInfo
                 {
                     HttpMethod = httpMethod,
                     Route = fullRoute,
-                    Summary = GetXmlSummary(method),
-                    Description = GetXmlSummary(method),
+                    Summary = GetXmlSummary(method) ?? method.Name,
+                    Description = GetXmlSummary(method) ?? method.Name,
                     ReturnType = GetFriendlyTypeName(method.ReturnType),
                     ReturnSchema = GenerateJsonSchema(method.ReturnType, new HashSet<Type>()),
-                    Parameters = method.GetParameters().Select(p => new ApiParameterInfo
-                    {
-                        Name = p.Name ?? "unnamed",
-                        Type = GetFriendlyTypeName(p.ParameterType),
-                        IsFromBody = p.GetCustomAttribute<FromBodyAttribute>() != null,
-                        IsRequired = p.GetCustomAttribute<RequiredAttribute>() != null || !p.IsOptional,
-                        Description = GetXmlSummary(p),
-                        Schema = GenerateJsonSchema(p.ParameterType, new HashSet<Type>())
-                    }).ToList()
+                    Parameters = GetParameters(method)
                 };
 
+                Console.WriteLine($"Endpoint generado: {httpMethod} {fullRoute}, Parámetros: {endpoint.Parameters.Count}, ReturnType: {endpoint.ReturnType}");
                 result.Add(endpoint);
+                processedMethods.Add(methodKey);
             }
         }
 
-        return result;
+        // Filtrar duplicados y endpoints inválidos
+        var filteredResult = result
+            .GroupBy(e => (e.Route, e.HttpMethod))
+            .Select(g =>
+            {
+                var endpoints = g.ToList();
+                if(endpoints.Count > 1)
+                {
+                    Console.WriteLine($"Duplicados detectados para {g.Key.Route} ({g.Key.HttpMethod}): {endpoints.Count} endpoints");
+                    foreach(var ep in endpoints)
+                    {
+                        Console.WriteLine($" - {ep.HttpMethod} {ep.Route}, Parámetros: {ep.Parameters.Count}, ReturnType: {ep.ReturnType}");
+                    }
+                }
+                return endpoints
+                    .OrderByDescending(e => e.Parameters.Count)
+                    .ThenByDescending(e => e.ReturnType != "Unknown")
+                    .ThenByDescending(e => e.Summary != null && !e.Summary.Contains(" ("))
+                    .First();
+            })
+            .Where(e => e.ReturnType != "Unknown" || e.Parameters.Any() || e.Route == "api/simple") // Permitir api/simple sin parámetros
+            .ToList();
+
+        Console.WriteLine($"Endpoints generados: {filteredResult.Count}");
+        foreach(var endpoint in filteredResult)
+        {
+            Console.WriteLine($"Endpoint final: {endpoint.HttpMethod} {endpoint.Route}, Parámetros: {endpoint.Parameters.Count}, ReturnType: {endpoint.ReturnType}, Summary: {endpoint.Summary}");
+        }
+
+        return filteredResult;
+    }
+
+    private List<ApiParameterInfo> GetParameters(MethodInfo method)
+    {
+        var parameters = new List<ApiParameterInfo>();
+
+        foreach(var param in method.GetParameters())
+        {
+            var fromQueryAttr = param.GetCustomAttribute<FromQueryAttribute>();
+            if(fromQueryAttr != null && !param.ParameterType.IsPrimitive && param.ParameterType != typeof(string))
+            {
+                foreach(var prop in param.ParameterType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                {
+                    parameters.Add(new ApiParameterInfo
+                    {
+                        Name = prop.Name,
+                        Type = GetFriendlyTypeName(prop.PropertyType),
+                        IsFromBody = false,
+                        IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null || !IsNullable(prop.PropertyType),
+                        Description = GetXmlSummary(prop),
+                        Schema = GenerateJsonSchema(prop.PropertyType, new HashSet<Type>())
+                    });
+                }
+            }
+            else
+            {
+                parameters.Add(new ApiParameterInfo
+                {
+                    Name = param.Name ?? "unnamed",
+                    Type = GetFriendlyTypeName(param.ParameterType),
+                    IsFromBody = param.GetCustomAttribute<FromBodyAttribute>() != null,
+                    IsRequired = param.GetCustomAttribute<RequiredAttribute>() != null || !param.IsOptional,
+                    Description = GetXmlSummary(param),
+                    Schema = GenerateJsonSchema(param.ParameterType, new HashSet<Type>())
+                });
+            }
+        }
+
+        return parameters;
+    }
+
+    private bool IsNullable(Type type)
+    {
+        return Nullable.GetUnderlyingType(type) != null || type.IsClass || type.IsInterface;
     }
 
     private string CombineRoute(string prefix, string route)
     {
-        return $"{prefix.TrimEnd('/')}/{route.TrimStart('/')}";
+        prefix = prefix.TrimEnd('/');
+        route = route.TrimStart('/');
+        return string.IsNullOrEmpty(route) ? prefix : $"{prefix}/{route}";
     }
 
     private string GetMethodRoute(MethodInfo method)
@@ -84,8 +194,8 @@ internal class ControllerMetadataProvider : IMetadataProvider
         if(routeAttr != null)
             return routeAttr.Template;
 
-        var httpAttr = method.GetCustomAttributes().FirstOrDefault(a => a is HttpMethodAttribute) as HttpMethodAttribute;
-        return httpAttr?.Template ?? method.Name;
+        var httpAttr = method.GetCustomAttribute<HttpMethodAttribute>();
+        return httpAttr?.Template ?? "";
     }
 
     private Dictionary<string, string> LoadXmlDocumentation()
@@ -133,7 +243,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
         if(member is MethodInfo method)
         {
             var paramTypes = method.GetParameters()
-                .Select(p => p.ParameterType.FullName)
+                .Select(p => p.ParameterType.FullName ?? "Unknown")
                 .ToArray();
 
             var methodName = $"{method.DeclaringType?.FullName}.{method.Name}";
@@ -157,7 +267,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
         if(method != null)
         {
             var paramTypes = method.GetParameters()
-                .Select(p => p.ParameterType.FullName)
+                .Select(p => p.ParameterType.FullName ?? "Unknown")
                 .ToArray();
             var methodName = $"{method.DeclaringType?.FullName}.{method.Name}";
             if(paramTypes.Length > 0)
@@ -190,7 +300,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
         processedTypes ??= new HashSet<Type>();
 
-        // Manejar tipos primitivos primero
         if(type.IsPrimitive || type == typeof(string))
         {
             return new Dictionary<string, object>
@@ -199,7 +308,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
             };
         }
 
-        // Verificar referencias circulares solo para tipos no primitivos
         if(processedTypes.Contains(type))
         {
             return new Dictionary<string, object>
@@ -213,7 +321,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
         var schema = new Dictionary<string, object>();
 
-        // Manejar listas
         if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
         {
             schema["type"] = "array";
@@ -222,7 +329,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
             return schema;
         }
 
-        // Manejar objetos
         schema["type"] = "object";
         schema["properties"] = new Dictionary<string, object>();
         var requiredProperties = new List<string>();

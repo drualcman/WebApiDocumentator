@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers; // Añadido para ControllerActionDescriptor
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
-using System.Reflection;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
+using System.Reflection;
 using System.Xml.Linq;
 
 namespace WebApiDocumentator.Metadata;
@@ -24,16 +24,17 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
     public List<ApiEndpointInfo> GetEndpoints()
     {
         var endpoints = new List<ApiEndpointInfo>();
-
         var excludedRoutes = new[] { "/get-metadata", "/openapi" };
 
         var endpointToTrace = _endpointDataSource.Endpoints
             .OfType<RouteEndpoint>()
             .Where(e =>
-                !e.Metadata.OfType<CompiledPageActionDescriptor>().Any() &&
+                !e.Metadata.OfType<CompiledPageActionDescriptor>().Any() && // Excluir páginas Razor
+                !e.Metadata.OfType<ControllerActionDescriptor>().Any() &&   // Excluir endpoints de controladores
                 !excludedRoutes.Any(excluded => e.RoutePattern.RawText?.StartsWith(excluded, StringComparison.OrdinalIgnoreCase) == true))
             .ToList();
 
+        Console.WriteLine($"Total de endpoints Minimal API detectados: {endpointToTrace.Count}");
         foreach(var endpoint in endpointToTrace)
         {
             var httpMethods = endpoint.Metadata
@@ -41,7 +42,10 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                 .FirstOrDefault()?.HttpMethods;
 
             if(httpMethods == null || httpMethods.Count == 0)
+            {
+                Console.WriteLine($"Endpoint ignorado (sin métodos HTTP): {endpoint.RoutePattern.RawText}");
                 continue;
+            }
 
             var methodInfo = endpoint.Metadata
                 .OfType<MethodInfo>()
@@ -50,6 +54,8 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
             var parameters = new List<ApiParameterInfo>();
             string returnType = "Unknown";
             Dictionary<string, object>? returnSchema = null;
+
+            Console.WriteLine($"Procesando endpoint: {httpMethods[0]} {endpoint.RoutePattern.RawText}, DisplayName: {endpoint.DisplayName}");
 
             if(methodInfo != null)
             {
@@ -104,7 +110,7 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
 
             var endpointInfo = new ApiEndpointInfo
             {
-                Route = endpoint.RoutePattern.RawText ?? "",
+                Route = endpoint.RoutePattern.RawText?.ToLowerInvariant() ?? "", // Normalizar a minúsculas
                 HttpMethod = httpMethods[0],
                 Summary = GetMinimalApiSummary(endpoint),
                 Description = GetXmlSummary(methodInfo),
@@ -113,9 +119,11 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                 ReturnSchema = returnSchema
             };
 
+            Console.WriteLine($"Endpoint generado: {endpointInfo.HttpMethod} {endpointInfo.Route}, Parámetros: {endpointInfo.Parameters.Count}, ReturnType: {endpointInfo.ReturnType}");
             endpoints.Add(endpointInfo);
         }
 
+        Console.WriteLine($"Total de endpoints Minimal API generados: {endpoints.Count}");
         return endpoints;
     }
 
@@ -170,7 +178,6 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
 
         processedTypes ??= new HashSet<Type>();
 
-        // Manejar tipos primitivos primero
         if(type.IsPrimitive || type == typeof(string))
         {
             return new Dictionary<string, object>
@@ -179,7 +186,6 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
             };
         }
 
-        // Verificar referencias circulares solo para tipos no primitivos
         if(processedTypes.Contains(type))
         {
             return new Dictionary<string, object>
@@ -193,7 +199,6 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
 
         var schema = new Dictionary<string, object>();
 
-        // Manejar listas
         if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
         {
             schema["type"] = "array";
@@ -202,7 +207,6 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
             return schema;
         }
 
-        // Manejar objetos
         schema["type"] = "object";
         schema["properties"] = new Dictionary<string, object>();
         var requiredProperties = new List<string>();

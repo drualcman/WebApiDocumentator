@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Reflection.Metadata.Ecma335;
-using WebApiDocumentator.Metadata;
 using WebApiDocumentator.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddControllers()
+    .AddApplicationPart(typeof(WebApiDocumentator.ApiDemo.TestController).Assembly); // Forzar descubrimiento del ensamblado
 builder.Services.AddOpenApi();
 builder.Services.AddMyApiDocs(options =>
 {
@@ -23,18 +23,33 @@ builder.Services.AddMyApiDocs(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if(app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
+app.MapControllers();
+
 
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
 };
 
+app.MapGet("/debug/routes", (IEnumerable<EndpointDataSource> endpointSources) =>
+{
+    var routes = endpointSources
+        .SelectMany(source => source.Endpoints)
+        .OfType<RouteEndpoint>()
+        .Select(endpoint => new
+        {
+            Route = endpoint.RoutePattern.RawText,
+            Methods = endpoint.Metadata.OfType<HttpMethodMetadata>().SelectMany(m => m.HttpMethods),
+            DisplayName = endpoint.DisplayName
+        });
+    return Results.Ok(routes);
+}).WithName("DebugRoutes");
 
 app.MapGet("/weatherforecast", () =>
 {
