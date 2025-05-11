@@ -217,9 +217,10 @@
             margin-bottom: 5px;
         }
         .schema-table td.source-path {
-    color: #007bff;
-    font-weight: 600;
-}
+            color: #007bff;
+            font-weight: 600;
+        }               
+
     </style>
 </head>
 <body>
@@ -231,22 +232,22 @@
         <ul>
             @foreach(var group in Model.Groups)
             {
-                    <li>
-                        <strong>@group.PathPrefix</strong>
-                        <ul>
+                        <li>
+                            <strong>@group.PathPrefix</strong>
+                            <ul>
                         @foreach(var endpoint in group.Endpoints)
                         {
                             var isSelected = endpoint.Route == selected?.Route && endpoint.HttpMethod == selected?.HttpMethod;
-                                    <li>
-                                        <a class="endpoint-link @(isSelected ? "selected" : "")"
-                                           href="?method=@endpoint.HttpMethod&route=@Uri.EscapeDataString(endpoint.Route)">
-                                            <span class="http-method @endpoint.HttpMethod">@endpoint.HttpMethod</span>
+                                            <li>
+                                                <a class="endpoint-link @(isSelected ? "selected" : "")"
+                                                   href="?method=@endpoint.HttpMethod&route=@Uri.EscapeDataString(endpoint.Route)">
+                                                    <span class="http-method @endpoint.HttpMethod">@endpoint.HttpMethod</span>
                                     @endpoint.Route
-                                        </a>
-                                    </li>
+                                                </a>
+                                            </li>
                         }
-                        </ul>
-                    </li>
+                            </ul>
+                        </li>
             }
         </ul>
     </div>
@@ -254,135 +255,135 @@
     <div id="content">
         @if(selected == null)
         {
-                <h1>@Model.Name</h1>
-                <h2>@Model.Version</h2>
+                    <h1>@Model.Name</h1>
+                    <h2>@Model.Version</h2>
             @if(!string.IsNullOrWhiteSpace(version))
             {
-                        <a class="endpoint-link" href="/openapi/@(version).json" target="_blank">
-                            OpenAPI @version
-                        </a>
+                                <a class="endpoint-link" href="/openapi/@(version).json" target="_blank">
+                                    OpenAPI @version
+                                </a>
             }
-                <p>@Model.Description</p>
+                    <p>@Model.Description</p>
         }
         else
         {
-                <div class="endpoint-header">
-                <span class="http-method @selected.HttpMethod">@selected.HttpMethod</span>
-                <h2>@selected.Route</h2>
-            </div>
-            <p>@summary</p>
+                    <div class="endpoint-header">
+                    <span class="http-method @selected.HttpMethod">@selected.HttpMethod</span>
+                    <h2>@selected.Route</h2>
+                </div>
+                <p>@summary</p>
             @if(parameters.Any())
             {
-                    <h4>Parámetros adicionales</h4>
-                    <ul>
+                            <h4>Parámetros adicionales</h4>
+                            <ul>
                     @foreach(var param in parameters)
                     {
-                                <li>@param</li>
+                                            <li>@param</li>
                     }
-                    </ul>
+                            </ul>
             }
 
-            <h3>Parámetros</h3>
-              <h3>Parámetros</h3>
+                <h3>Parámetros</h3>
+                  <h3>Parámetros</h3>
             @if(selected.Parameters.Any())
             {
-                    <table class="schema-table">
-                        <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Tipo</th>
-                                <th>Requerido</th>
-                                <th>Fuente</th>
-                                <th>Descripción</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                            <table class="schema-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Tipo</th>
+                                        <th>Requerido</th>
+                                        <th>Fuente</th>
+                                        <th>Descripción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                         @foreach(var param in selected.Parameters)
                         {
-                                        <tr>
-                                            <td>@param.Name</td>
-                                            <td>@param.Type</td>
-                                            <td>@(param.IsRequired ? "Sí" : "No")</td>
-                                            <td class="source-@param.Source.ToLower()">@param.Source</td>
-                                            <td>@param.Description</td>
-                                        </tr>
+                                                    <tr>
+                                                        <td>@param.Name</td>
+                                                        <td>@param.Type</td>
+                                                        <td>@(param.IsRequired ? "Sí" : "No")</td>
+                                                        <td class="source-@param.Source.ToLower()">@param.Source</td>
+                                                        <td>@param.Description</td>
+                                                    </tr>
                         }
-                        </tbody>
-                    </table>
+                                </tbody>
+                            </table>
             }
             else
             {
-                    <p>No hay parámetros.</p>
+                            <p>No hay parámetros.</p>
             }
 
-                <h3>Respuesta</h3>
-                <p><strong>Tipo:</strong> @selected.ReturnType</p>
+                    <h3>Respuesta</h3>
+                    <p><strong>Tipo:</strong> @selected.ReturnType</p>
             @if(selected.ReturnSchema != null)
             {
-                        <pre class="json-viewer">@System.Text.Json.JsonSerializer.Serialize(selected.ReturnSchema, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })</pre>
+                                <pre class="json-viewer">@System.Text.Json.JsonSerializer.Serialize(selected.ReturnSchema, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })</pre>
             }
             else
             {
-                        <p>No hay esquema de retorno disponible.</p>
+                                <p>No hay esquema de retorno disponible.</p>
             }
 
-                <hr />
-                <h3>Probar este endpoint</h3>
-                <form method="post" action="/Docs?method=@selected.HttpMethod&route=@Uri.EscapeDataString(selected.Route)">
-                    <input type="hidden" name="TestInput.Method" value="@method" />
-                    <input type="hidden" name="TestInput.Route" value="@route" />
+                    <hr />
+                    <h3>Probar este endpoint</h3>
+                    <form method="post" action="/Docs?method=@selected.HttpMethod&route=@Uri.EscapeDataString(selected.Route)">
+                        <input type="hidden" name="TestInput.Method" value="@method" />
+                        <input type="hidden" name="TestInput.Route" value="@route" />
                 @Html.AntiForgeryToken()
 
                 @foreach(var param in selected.Parameters)
                 {
-                    string value = Model.GenerateFlatSchema(param.Schema) ?? "";
-                            <div>
-                                <label>@param.Name (@param.Type): @(param.IsRequired ? "Requerido" : "Opcional")</label><br />
+                    string value = Model.TestInput.Parameters.ContainsKey(param.Name) ? Model.TestInput.Parameters[param.Name] : Model.GenerateFlatSchema(param.Schema) ?? "";
+                                    <div>
+                                        <label>@param.Name (@param.Type): @(param.IsRequired ? "Requerido" : "Opcional")</label><br />
                         @if(param.IsFromBody)
                         {
-                                        <textarea name="TestInput.Parameters[@param.Name]"
-                                                  placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value</textarea>
+                                                    <textarea name="TestInput.Parameters[@param.Name]"
+                                                              placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value</textarea>
                         }
                         else
                         {
-                                        <input type="text"
-                                               name="TestInput.Parameters[@param.Name]"
-                                               value="@value"
-                                               placeholder="@(param.IsRequired ? "Requerido" : "Opcional")" />
+                                                    <input type="text"
+                                                           name="TestInput.Parameters[@param.Name]"
+                                                           value="@value"
+                                                           placeholder="@(param.IsRequired ? "Requerido" : "Opcional")" />
                         }
                         @if(ModelState.ContainsKey($"TestInput.Parameters[{param.Name}]"))
                         {
-                                        <div class="field-error">
+                                                    <div class="field-error">
                                 @ModelState[$"TestInput.Parameters[{param.Name}]"].Errors.FirstOrDefault()?.ErrorMessage
-                                        </div>
+                                                    </div>
                         }
-                            </div>
+                                    </div>
                 }
                 @if(!ModelState.IsValid && ModelState.Any(e => e.Value?.Errors?.Any(e => !string.IsNullOrWhiteSpace(e.ErrorMessage)) ?? false))
                 {
-                            <ul>
+                                    <ul>
                         @foreach(var error in ModelState.Where(kvp => !kvp.Key.StartsWith("TestInput.Parameters[")))
                         {
                             foreach(var err in error.Value.Errors)
                             {
                                 if(!string.IsNullOrWhiteSpace(err.ErrorMessage))
                                 {
-                                                        <li class="general-error">
+                                                                            <li class="general-error">
                                         @err.ErrorMessage
-                                                        </li>
+                                                                            </li>
                                 }
                             }
                         }
-                            </ul>
+                                    </ul>
                 }
 
-                    <button type="submit">Probar</button>
-                </form>
+                        <button type="submit">Probar</button>
+                    </form>
 
             @if(Model.TestResponse != null)
             {
-                        <h4>Respuesta de prueba</h4>
-                        <pre class="json-viewer">@Model.TestResponse</pre>
+                                <h4>Respuesta de prueba</h4>
+                                <pre class="json-viewer">@Model.TestResponse</pre>
             }
         }
 
@@ -390,50 +391,50 @@
 
     @if(selected != null)
     {
-            <div id="examples">
-                <h3>Ejemplos</h3>
+                <div id="examples">
+                    <h3>Ejemplos</h3>
 
-                <h4>cURL</h4>
-                <pre>
-            curl -X @selected.HttpMethod https://api.tuweb.com@selected.Route@if (Model.ExampleBodyJson != null)
-            {
-                <text> \
-              -H "Content-Type: application/json" \
-              -d '@Html.Raw(Model.ExampleBodyJson)'</text>
-            }
-                        </pre>
+                    <h4>cURL</h4>
+                    <pre>
+                curl -X @selected.HttpMethod https://api.tuweb.com@selected.Route@if (Model.ExampleBodyJson != null)
+                {
+                    <text> \
+                  -H "Content-Type: application/json" \
+                  -d '@Html.Raw(Model.ExampleBodyJson)'</text>
+                }
+                            </pre>
 
-                <h4>C# (HttpClient)</h4>
-                <pre>
-            using var client = new HttpClient();
-            client.BaseAddress = new Uri("https://api.tuweb.com");
+                    <h4>C# (HttpClient)</h4>
+                    <pre>
+                using var client = new HttpClient();
+                client.BaseAddress = new Uri("https://api.tuweb.com");
                 @if(Model.ExampleBodyJson != null)
                 {
                     <text>var content = new StringContent(@Html.Raw(Model.ExampleBodyJson), System.Text.Encoding.UTF8, "application/json");
-                        var response = await client.@(selected.HttpMethod)Async("@selected.Route", content);</text>
+                                var response = await client.@(selected.HttpMethod)Async("@selected.Route", content);</text>
                 }
                 else
                 {
                     <text>var response = await client.@(selected.HttpMethod)Async("@selected.Route");</text>
                 }
-            response.EnsureSuccessStatusCode();
-            var content = await response.Content.ReadAsStringAsync();
-                        </pre>
+                response.EnsureSuccessStatusCode();
+                var content = await response.Content.ReadAsStringAsync();
+                            </pre>
 
-                <h4>fetch (JavaScript)</h4>
-                <pre>
-            fetch("https://api.tuweb.com@selected.Route", {
-                method: "@selected.HttpMethod"@if(Model.ExampleBodyJson != null)
+                    <h4>fetch (JavaScript)</h4>
+                    <pre>
+                fetch("https://api.tuweb.com@selected.Route", {
+                    method: "@selected.HttpMethod"@if(Model.ExampleBodyJson != null)
                 {
                     <text>,
-                            headers: { "Content-Type": "application/json" },
-                            body: @Html.Raw(Model.ExampleBodyJson)</text>
+                                    headers: { "Content-Type": "application/json" },
+                                    body: @Html.Raw(Model.ExampleBodyJson)</text>
                 }
-            })
-            .then(res => res.json())
-            .then(data => console.log(data));
-                        </pre>
-            </div>
+                })
+                .then(res => res.json())
+                .then(data => console.log(data));
+                            </pre>
+                </div>
     }
 </body>
 </html>
