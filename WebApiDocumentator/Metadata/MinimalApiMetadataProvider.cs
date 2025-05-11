@@ -55,7 +55,7 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
 
                     var returnType = TypeNameHelper.GetFriendlyTypeName(methodInfo.ReturnType);
                     var returnSchema = _schemaGenerator.GenerateJsonSchema(methodInfo.ReturnType, new HashSet<Type>());
-                    var returnExcample = _schemaGenerator.GetExampleAsJsonString(returnSchema);
+                    var exampleJson = _schemaGenerator.GetExampleAsJsonString(returnSchema);
 
                     if(typeof(IResult).IsAssignableFrom(methodInfo.ReturnType))
                     {
@@ -64,7 +64,25 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                         {
                             returnType = TypeNameHelper.GetFriendlyTypeName(resultType);
                             returnSchema = _schemaGenerator.GenerateJsonSchema(resultType, new HashSet<Type>());
-                            returnExcample = _schemaGenerator.GetExampleAsJsonString(returnSchema);
+                            exampleJson = _schemaGenerator.GetExampleAsJsonString(returnSchema);
+                        }
+                    }
+
+                    // Clean up summary to avoid compiler-generated names
+                    var summary = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, methodInfo)?.Trim().TrimEnd('.');
+                    if(string.IsNullOrWhiteSpace(summary) || methodInfo.Name.Contains("<") || methodInfo.Name.Contains("b__"))
+                    {
+                        summary = $"{httpMethods[0]} {endpoint.RoutePattern.RawText}";
+                    }
+
+                    // Remove parameter details from description to avoid redundancy
+                    var cleanDescription = description;
+                    if(!string.IsNullOrWhiteSpace(description))
+                    {
+                        var paramIndex = description.IndexOf("\nParameters:\n", StringComparison.Ordinal);
+                        if(paramIndex >= 0)
+                        {
+                            cleanDescription = description.Substring(0, paramIndex).Trim();
                         }
                     }
 
@@ -72,12 +90,12 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                     {
                         Route = endpoint.RoutePattern.RawText?.ToLowerInvariant() ?? "",
                         HttpMethod = httpMethods[0],
-                        Summary = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, methodInfo)?.Trim().TrimEnd('.') ?? endpoint.DisplayName,
-                        Description = description,
+                        Summary = summary,
+                        Description = cleanDescription,
                         ReturnType = returnType,
                         Parameters = parameters,
                         ReturnSchema = returnSchema,
-                        ExampleJson = returnExcample
+                        ExampleJson = exampleJson
                     };
 
                     endpoints.Add(endpointInfo);
