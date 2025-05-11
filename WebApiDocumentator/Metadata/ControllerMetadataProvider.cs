@@ -16,7 +16,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
         _assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
         _xmlDocs = LoadXmlDocumentation();
     }
-
     public List<ApiEndpointInfo> GetEndpoints()
     {
         var result = new List<ApiEndpointInfo>();
@@ -78,12 +77,42 @@ internal class ControllerMetadataProvider : IMetadataProvider
                     continue;
                 }
 
+                // Obtener la descripción del método
+                var methodSummary = GetXmlSummary(method) ?? method.Name;
+                // Normalizar: eliminar punto final si existe
+                methodSummary = methodSummary.Trim().TrimEnd('.');
+
+                // Construir la descripción con información de los parámetros
+                var methodXmlKey = GetXmlMemberName(method);
+                var parameterDescriptions = new List<string>();
+                foreach(var param in method.GetParameters())
+                {
+                    var paramDescription = GetXmlParamSummary(methodXmlKey, param.Name);
+                    if(!string.IsNullOrEmpty(paramDescription))
+                    {
+                        // Normalizar: eliminar punto final si existe
+                        paramDescription = paramDescription.Trim().TrimEnd('.');
+                        var paramType = GetFriendlyTypeName(param.ParameterType);
+                        var paramSource = param.GetCustomAttribute<FromQueryAttribute>() != null ? "Query" :
+                                         param.GetCustomAttribute<FromBodyAttribute>() != null ? "Body" : "Unknown";
+                        var paramInfo = $"{param.Name} ({paramType}, {paramSource}): {paramDescription}";
+                        parameterDescriptions.Add(paramInfo);
+                    }
+                }
+
+                // Construir la descripción con nuevas líneas
+                var description = methodSummary;
+                if(parameterDescriptions.Any())
+                {
+                    description += "\nParámetros:\n" + string.Join("\n", parameterDescriptions);
+                }
+
                 var endpoint = new ApiEndpointInfo
                 {
                     HttpMethod = httpMethod,
                     Route = fullRoute,
-                    Summary = GetXmlSummary(method) ?? method.Name,
-                    Description = GetXmlSummary(method) ?? method.Name,
+                    Summary = methodSummary,
+                    Description = description,
                     ReturnType = GetFriendlyTypeName(method.ReturnType),
                     ReturnSchema = GenerateJsonSchema(method.ReturnType, new HashSet<Type>()),
                     Parameters = GetParameters(method)
@@ -252,7 +281,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
         Console.WriteLine($"Entradas XML totales cargadas: {result.Count}");
         foreach(var entry in result)
         {
-            Console.WriteLine($" - {entry.Key}: {entry.Value}");
+            Console.WriteLine($"{entry.Key}: {entry.Value}");
         }
 
         return result;

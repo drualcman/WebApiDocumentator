@@ -6,6 +6,9 @@
     var method = selected?.HttpMethod ?? "GET";
     var route = selected?.Route ?? "/default/route";
     var version = Model.GetApiVersion();
+    var descriptionParts = selected?.Description.Split("\nParámetros:\n") ?? [];
+    var summary = descriptionParts.Length > 1 ? descriptionParts[0] : "";
+    var parameters = descriptionParts.Length > 1 ? descriptionParts[1].Split("\n").Where(p => !string.IsNullOrWhiteSpace(p)).ToList() : new List<string>();
 }
 
 <!DOCTYPE html>
@@ -260,38 +263,48 @@
         else
         {
             <div class="endpoint-header">
-                <span class="http-method @selected.HttpMethod">@selected.HttpMethod</span>
-                <h2>@selected.Route</h2>
-            </div>
-            <p>@selected.Description</p>
+            <span class="http-method @selected.HttpMethod">@selected.HttpMethod</span>
+            <h2>@selected.Route</h2>
+        </div>
+        <p>@summary</p>
+        @if(parameters.Any())
+        {
+            <h4>Parámetros adicionales</h4>
+            <ul>
+                @foreach(var param in parameters)
+                {
+                    <li>@param</li>
+                }
+            </ul>
+        }
 
-            <h3>Parámetros</h3>
-            @if(selected.Parameters.Any())
-            {
-                <table class="schema-table">
-                    <thead>
+        <h3>Parámetros</h3>
+        @if(selected.Parameters.Any())
+        {
+            <table class="schema-table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Tipo</th>
+                        <th>Requerido</th>
+                        <th>Fuente</th>
+                        <th>Descripción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach(var param in selected.Parameters)
+                    {
                         <tr>
-                            <th>Nombre</th>
-                            <th>Tipo</th>
-                            <th>Requerido</th>
-                            <th>Fuente</th>
-                            <th>Descripción</th>
+                            <td>@param.Name</td>
+                            <td>@param.Type</td>
+                            <td>@(param.IsRequired ? "Sí" : "No")</td>
+                            <td>@(param.IsFromBody ? "Body" : "Query")</td>
+                            <td>@param.Description</td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @foreach(var param in selected.Parameters)
-                        {
-                            <tr>
-                                <td>@param.Name</td>
-                                <td>@param.Type</td>
-                                <td>@(param.IsRequired ? "Sí" : "No")</td>
-                                <td>@(param.IsFromBody ? "Body" : "Query")</td>
-                                <td>@param.Description</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            }
+                    }
+                </tbody>
+            </table>
+        }
             else
             {
                 <p>No hay parámetros.</p>
@@ -367,6 +380,7 @@
                 <pre class="json-viewer">@Model.TestResponse</pre>
             }
         }
+  
     </div>
 
     @if(selected != null)
