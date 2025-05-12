@@ -63,55 +63,65 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
                         if(httpAttrs.Any())
                         {
-                            var httpAttr = httpAttrs.First();
-                            var httpMethod = httpAttr.HttpMethods.FirstOrDefault()?.ToUpper() ?? "UNKNOWN";
-                            var methodRoute = GetMethodRoute(method).ToLowerInvariant();
-                            var fullRoute = CombineRoute(routePrefix, methodRoute).ToLowerInvariant();
-
-                            if(!excludedRoutes.Any(excluded => fullRoute.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)))
+                            if(httpAttrs.Count > 1)
                             {
-                                var routeParameters = GetRouteParameters(fullRoute);
+                                _logger.LogInformation("Multiple HttpMethodAttribute found on method {MethodName}. Processing all routes: {Routes}",
+                                    method.Name,
+                                    string.Join(", ", httpAttrs.Select(a => $"{a.HttpMethods.FirstOrDefault()} {a.Template}")));
+                            }
 
-                                var (parameters, description) = _descriptionBuilder.BuildParameters(method, routeParameters);
+                            foreach(var httpAttr in httpAttrs)
+                            {
+                                var httpMethod = httpAttr.HttpMethods.FirstOrDefault()?.ToUpper() ?? "UNKNOWN";
+                                var methodRoute = httpAttr.Template?.ToLowerInvariant() ?? GetMethodRoute(method).ToLowerInvariant();
+                                var fullRoute = CombineRoute(routePrefix, methodRoute).ToLowerInvariant();
 
-                                // Log if description or summary is missing
-                                if(string.IsNullOrWhiteSpace(description))
+                                if(!excludedRoutes.Any(excluded => fullRoute.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)))
                                 {
-                                    description = $"Handles {httpMethod} requests for {fullRoute}";
-                                    _logger.LogWarning("No XML summary found for method {MethodKey}. Using fallback: {Fallback}", methodKey, description);
-                                }
+                                    var routeParameters = GetRouteParameters(fullRoute);
 
-                                // Ensure parameter descriptions are set
-                                var methodXmlKey = XmlDocumentationHelper.GetXmlMemberName(method);
-                                foreach(var param in parameters)
-                                {
-                                    if(string.IsNullOrWhiteSpace(param.Description))
+                                    var (parameters, description) = _descriptionBuilder.BuildParameters(method, routeParameters);
+
+                                    // Log if description or summary is missing
+                                    if(string.IsNullOrWhiteSpace(description))
                                     {
-                                        var paramXml = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name) ?? "Route parameter";
-                                        param.Description = paramXml.Trim().TrimEnd('.');
-                                        if(param.Description == "Route parameter")
+                                        description = $"Handles {httpMethod} requests for {fullRoute}";
+                                        _logger.LogWarning("No XML summary found for method {MethodKey}. Using fallback: {Fallback}", methodKey, description);
+                                    }
+
+                                    // Ensure parameter descriptions are set
+                                    var methodXmlKey = XmlDocumentationHelper.GetXmlMemberName(method);
+                                    foreach(var param in parameters)
+                                    {
+                                        if(string.IsNullOrWhiteSpace(param.Description))
                                         {
-                                            _logger.LogWarning("No XML <param> documentation found for parameter {ParamName} in method {MethodKey}", param.Name, methodKey);
+                                            var paramXml = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name) ?? "Route parameter";
+                                            param.Description = paramXml.Trim().TrimEnd('.');
+                                            if(param.Description == "Route parameter")
+                                            {
+                                                _logger.LogWarning("No XML <param> documentation found for parameter {ParamName} in method {MethodKey}", param.Name, methodKey);
+                                            }
                                         }
                                     }
-                                }
-                                var schema = _schemaGenerator.GenerateJsonSchema(method.ReturnType, new HashSet<Type>());
-                                var endpoint = new ApiEndpointInfo
-                                {
-                                    Id = EndpointHelper.GenerateEndpointId(httpMethod, fullRoute), // Hash-based ID
-                                    HttpMethod = httpMethod,
-                                    Route = fullRoute,
-                                    Summary = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, method)?.Trim().TrimEnd('.') ?? method.Name,
-                                    Description = description,
-                                    ReturnType = TypeNameHelper.GetFriendlyTypeName(method.ReturnType),
-                                    ReturnSchema = schema,
-                                    Parameters = parameters,
-                                    ExampleJson = _schemaGenerator.GetExampleAsJsonString(schema)
-                                };
+                                    var schema = _schemaGenerator.GenerateJsonSchema(method.ReturnType, new HashSet<Type>());
+                                    var endpoint = new ApiEndpointInfo
+                                    {
+                                        Id = EndpointHelper.GenerateEndpointId(httpMethod, fullRoute), // Hash-based ID
+                                        HttpMethod = httpMethod,
+                                        Route = fullRoute,
+                                        Summary = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, method)?.Trim().TrimEnd('.') ?? method.Name,
+                                        Description = description,
+                                        ReturnType = TypeNameHelper.GetFriendlyTypeName(method.ReturnType),
+                                        ReturnSchema = schema,
+                                        Parameters = parameters,
+                                        ExampleJson = _schemaGenerator.GetExampleAsJsonString(schema)
+                                    };
 
-                                result.Add(endpoint);
-                                processedMethods.Add(methodKey);
+                                    result.Add(endpoint);
+                                    _logger.LogInformation("Added endpoint: Id={Id}, Method={Method}, Route={Route}", endpoint.Id, httpMethod, fullRoute);
+                                }
                             }
+                            processedMethods.Add(methodKey);
                         }
                     }
                 }
@@ -160,7 +170,21 @@ internal class ControllerMetadataProvider : IMetadataProvider
         if(routeAttr != null)
             return routeAttr.Template;
 
-        var httpAttr = method.GetCustomAttribute<HttpMethodAttribute>();
-        return httpAttr?.Template ?? "";
+        var httpAttrs = method.GetCustomAttributes()
+            .OfType<HttpMethodAttribute>()
+            .ToList();
+
+        if(httpAttrs.Any())
+        {
+            if(httpAttrs.Count > 1)
+            {
+                _logger.LogWarning("Multiple HttpMethodAttribute found on method {MethodName}. Using the first one for fallback. Attributes: {Attributes}",
+                    method.Name,
+                    string.Join(", ", httpAttrs.Select(a => $"{a.GetType().Name}(Template={a.Template})")));
+            }
+            return httpAttrs.First().Template ?? "";
+        }
+
+        return "";
     }
 }
