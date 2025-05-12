@@ -165,51 +165,62 @@ internal class IndexModel : PageModel
             var response = await _httpClient.SendAsync(request);
             var responseContent = await response.Content.ReadAsStringAsync();
 
-            try
+            if(!string.IsNullOrWhiteSpace(responseContent))
             {
-                var formattedJson = JsonSerializer.Serialize(JsonSerializer.Deserialize<object>(responseContent), new JsonSerializerOptions { WriteIndented = true });
-                TestResponse = formattedJson;
-            }
-            catch
-            {
-                TestResponse = responseContent;
+                try
+                {
+                    var formattedJson = JsonSerializer.Serialize(JsonSerializer.Deserialize<object>(responseContent), new JsonSerializerOptions { WriteIndented = true });
+                    TestResponse = formattedJson;
+                }
+                catch
+                {
+                    TestResponse = responseContent;
+                }
             }
 
             if(!response.IsSuccessStatusCode)
             {
-                try
+                if(!string.IsNullOrWhiteSpace(responseContent))
                 {
-                    var problemDetails = JsonSerializer.Deserialize<JsonNode>(responseContent);
-                    if(problemDetails != null && problemDetails["errors"] is JsonObject errors)
+                    try
                     {
-                        foreach(var error in errors)
+                        var problemDetails = JsonSerializer.Deserialize<JsonDocument>(responseContent);
+                        if(problemDetails != null && problemDetails.RootElement.TryGetProperty("errors", out var errors))
                         {
-                            var paramName = error.Key;
-                            var errorMessages = error.Value as JsonArray;
-                            if(errorMessages != null && SelectedEndpoint.Parameters.Any(p => p.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase)))
+                            var errorList = errors.Deserialize<JsonObject>();
+                            foreach(var error in errorList)
                             {
-                                foreach(var errorMessage in errorMessages)
+                                var paramName = error.Key;
+                                var errorMessages = error.Value as JsonArray;
+                                if(errorMessages != null && SelectedEndpoint.Parameters.Any(p => p.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase)))
                                 {
-                                    if(errorMessage != null)
+                                    foreach(var errorMessage in errorMessages)
                                     {
-                                        ModelState.AddModelError($"TestInput.Parameters[{paramName}]", errorMessage.ToString());
+                                        if(errorMessage != null)
+                                        {
+                                            ModelState.AddModelError($"TestInput.Parameters[{paramName}]", errorMessage.ToString());
+                                        }
                                     }
                                 }
-                            }
-                            else
-                            {
-                                ModelState.AddModelError("", $"Request error: {error.Key} - {error.Value}");
+                                else
+                                {
+                                    ModelState.AddModelError("", $"Request error: {error.Key} - {error.Value}");
+                                }
                             }
                         }
+                        else
+                        {
+                            ModelState.AddModelError("", $"Request error: {response.StatusCode} - {responseContent}");
+                        }
                     }
-                    else
+                    catch
                     {
-                        ModelState.AddModelError("", $"Request error: {response.StatusCode} - {responseContent}");
+                        ModelState.AddModelError("", $"Request error: {(int)response.StatusCode} - {response.ReasonPhrase}. {responseContent}".Trim());
                     }
                 }
-                catch
+                else
                 {
-                    ModelState.AddModelError("", $"Request error: {response.StatusCode} - {responseContent}");
+                    ModelState.AddModelError("", $"Request error: {(int)response.StatusCode} - {response.ReasonPhrase}");
                 }
             }
         }
@@ -228,22 +239,8 @@ internal class IndexModel : PageModel
 
     public string? GenerateFlatSchema(Dictionary<string, object>? schema)
     {
-        if(schema == null || !schema.TryGetValue("type", out var type) || type.ToString() != "object")
-            return null;
-
-        var flatSchema = new Dictionary<string, string>();
-        if(schema.TryGetValue("properties", out var propertiesObj) && propertiesObj is Dictionary<string, object> properties)
-        {
-            foreach(var prop in properties)
-            {
-                if(prop.Value is Dictionary<string, object> propSchema && propSchema.TryGetValue("type", out var propType))
-                {
-                    flatSchema[prop.Key] = propType.ToString();
-                }
-            }
-        }
-
-        return JsonSerializer.Serialize(flatSchema, new JsonSerializerOptions { WriteIndented = true });
+        JsonSchemaGenerator generator = new JsonSchemaGenerator(new());
+        return generator.GetExampleAsJsonString(schema);
     }
 
     private IEnumerable<ApiEndpointInfo> GetAllEndpoints(EndpointGroupNode node)

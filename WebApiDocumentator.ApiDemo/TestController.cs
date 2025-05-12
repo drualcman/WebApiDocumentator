@@ -3,7 +3,7 @@ using WebApiDocumentator.ApiDemo.Services;
 using WebApiDocumentator.Options;
 
 namespace WebApiDocumentator.ApiDemo;
-[Route("api/Test")]
+[Route("api/[controller]")]
 [ApiController]
 public class TestController : ControllerBase
 {
@@ -12,11 +12,11 @@ public class TestController : ControllerBase
     /// </summary>
     /// <param name="options">Opciones de configuración pasadas como parámetros de consulta.</param>
     /// <returns>Las opciones recibidas.</returns>
-    [HttpGet("{name}")]
-    public DocumentatorOptions GetOptions(string name, [FromQuery] DocumentatorOptions options, IHttpClientFactory client, SomeServicio servicioInterno)
+    [HttpGet("{id:int}")]
+    public WeatherForecast[] GetOptions(int id, [FromQuery] DocumentatorOptions options, IHttpClientFactory client, SomeServicio servicioInterno)
     {
-        options.ApiName = $"{name}: {options.ApiName}";
-        return options;
+        options.ApiName = $"{id}: {options.ApiName}";
+        return [];
     }
     /// <summary>
     /// Obtiene las opciones de configuración. Este lo muestra como POST

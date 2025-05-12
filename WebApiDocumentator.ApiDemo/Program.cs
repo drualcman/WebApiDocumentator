@@ -3,12 +3,6 @@ using WebApiDocumentator.ApiDemo.Services;
 using WebApiDocumentator.Options;
 
 var builder = WebApplication.CreateBuilder(args);
-//// Configurar el logging para un nivel detallado
-//builder.Logging.ClearProviders();
-//builder.Logging.AddConsole().SetMinimumLevel(LogLevel.Trace);
-//builder.Logging.AddDebug().SetMinimumLevel(LogLevel.Trace);  // Asegúrate de que los logs lleguen al debug
-//builder.Logging.AddEventSourceLogger(); // Esto también muestra detalles de eventos internos
-
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddControllers()
@@ -82,7 +76,7 @@ app.MapPost("/algo/{id}", (int id, DocumentatorOptions data, IHttpClientFactory 
 
 app.Run();
 
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+public record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }

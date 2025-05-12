@@ -3,7 +3,6 @@
 internal class JsonSchemaGenerator
 {
     private readonly Dictionary<string, string> _xmlDocs;
-    private readonly Random _random = new Random();
 
     public JsonSchemaGenerator(Dictionary<string, string> xmlDocs)
     {
@@ -13,7 +12,7 @@ internal class JsonSchemaGenerator
     public string GetExampleAsJsonString(Dictionary<string, object>? schema)
     {
         if(schema == null || !schema.ContainsKey("example"))
-            return "[]"; // O algún valor por defecto
+            return ""; // O algún valor por defecto
 
         // Extraer el ejemplo del esquema
         var example = schema["example"];
@@ -23,7 +22,7 @@ internal class JsonSchemaGenerator
         {
             WriteIndented = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+        }).Trim('"');
     }
 
     public Dictionary<string, object>? GenerateJsonSchema(Type? type, HashSet<Type>? processedTypes = null, bool includeExample = true)

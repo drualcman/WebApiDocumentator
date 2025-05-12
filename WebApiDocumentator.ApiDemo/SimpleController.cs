@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using WebApiDocumentator.ApiDemo.Models;
 
 namespace WebApiDocumentator.ApiDemo;
 
@@ -7,5 +8,5 @@ namespace WebApiDocumentator.ApiDemo;
 public class SimpleController : ControllerBase
 {
     [HttpGet("{name}")]
-    public string Get(string name) => $"Hello {name}!";
+    public ModelOne Get(string name) => new ModelOne { Name = $"Hello {name}!", OtherModel = new ModelTwo { Id = 1, Someelse = $"Adios {name}!" } };
 }
