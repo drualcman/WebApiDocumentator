@@ -28,19 +28,19 @@ internal class CompositeMetadataProvider
         var allEndpoints = GetEndpoints();
         var rootNodes = new List<EndpointGroupNode>();
 
-        // Agrupar endpoints por el primer segmento
+        // Agrupar endpoints por el primer segmento o "root" para rutas sin prefijo
         var groupedByPrefix = allEndpoints
             .GroupBy(e => GetRouteGroupKey(e.Route))
-            .OrderBy(g => g.Key);
+            .OrderBy(g => g.Key == "root" ? "" : g.Key); // Priorizar "root"
 
         foreach(var group in groupedByPrefix)
         {
             var prefix = group.Key;
-            var groupNode = new EndpointGroupNode { Name = prefix };
+            var groupNode = new EndpointGroupNode { Name = prefix == "root" ? "/" : prefix };
 
             // Procesar los endpoints del grupo
             var endpointsByPath = group
-                .GroupBy(e => GetFullPathWithoutPrefix(e.Route, prefix))
+                .GroupBy(e => GetFullPathWithoutPrefix(e.Route, prefix == "root" ? "" : prefix))
                 .ToDictionary(
                     g => g.Key,
                     g => g.OrderBy(e => e.HttpMethod).ToList());
@@ -57,7 +57,7 @@ internal class CompositeMetadataProvider
                 var subPrefix = subGroup.Key;
                 if(string.IsNullOrEmpty(subPrefix))
                 {
-                    // Endpoint directo, ej: v1/du-account
+                    // Endpoint directo, ej: ping
                     groupNode.Endpoints.AddRange(subGroup.Value);
                     foreach(var endpoint in subGroup.Value)
                     {
@@ -70,7 +70,7 @@ internal class CompositeMetadataProvider
 
                 // Procesar los endpoints del subgrupo
                 var subEndpointsByPath = subGroup.Value
-                    .GroupBy(e => GetFullPathWithoutPrefix(e.Route, $"{prefix}/{subPrefix}"))
+                    .GroupBy(e => GetFullPathWithoutPrefix(e.Route, $"{prefix}/{subPrefix}".TrimStart('/')))
                     .ToDictionary(
                         g => g.Key,
                         g => g.OrderBy(e => e.HttpMethod).ToList());
@@ -82,7 +82,7 @@ internal class CompositeMetadataProvider
 
                     if(string.IsNullOrEmpty(path))
                     {
-                        // Endpoint directo, ej: v1/bill
+                        // Endpoint directo, ej: .well-known/assetlinks.json
                         subNode.Endpoints.AddRange(endpoints);
                         foreach(var endpoint in endpoints)
                         {
@@ -166,7 +166,9 @@ internal class CompositeMetadataProvider
     private string GetRouteGroupKey(string route)
     {
         var parts = route.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length > 0 ? parts[0].ToLower() : "root";
+        if(parts.Length == 0)
+            return "root";
+        return parts[0].ToLower();
     }
 
     private string GetNextSegment(string path)
@@ -179,12 +181,12 @@ internal class CompositeMetadataProvider
     {
         var normalizedRoute = route.Trim('/').ToLower();
         var normalizedPrefix = prefix.ToLower();
-        if(normalizedRoute.StartsWith(normalizedPrefix, StringComparison.OrdinalIgnoreCase))
+        if(string.IsNullOrEmpty(normalizedPrefix) || !normalizedRoute.StartsWith(normalizedPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            var remaining = normalizedRoute.Substring(normalizedPrefix.Length).Trim('/');
-            return remaining;
+            return normalizedRoute;
         }
-        return normalizedRoute;
+        var remaining = normalizedRoute.Substring(normalizedPrefix.Length).Trim('/');
+        return remaining;
     }
 
     private string CleanSegment(string segment)

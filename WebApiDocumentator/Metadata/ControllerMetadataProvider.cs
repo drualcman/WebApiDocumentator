@@ -48,7 +48,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
                 var controllerName = controllerType.Name.EndsWith("Controller", StringComparison.OrdinalIgnoreCase)
                     ? controllerType.Name.Substring(0, controllerType.Name.Length - "Controller".Length).ToLowerInvariant()
                     : controllerType.Name.ToLowerInvariant();
-                var routePrefix = routeAttr?.Template?.Replace("[controller]", controllerName).ToLowerInvariant() ?? controllerName;
+                var routePrefix = routeAttr?.Template?.Replace("[controller]", controllerName).ToLowerInvariant();
 
                 var methods = controllerType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
                     .Where(m => m.GetCustomAttributes().OfType<HttpMethodAttribute>().Any())
@@ -71,10 +71,34 @@ internal class ControllerMetadataProvider : IMetadataProvider
                             var httpMethod = httpAttr.HttpMethods.FirstOrDefault()?.ToUpper() ?? "UNKNOWN";
                             var methodRoute = httpAttr.Template?.ToLowerInvariant() ?? GetMethodRoute(method).ToLowerInvariant();
 
-                            // Usar la ruta absoluta si está definida, sin combinar con el prefijo
-                            var fullRoute = methodRoute.StartsWith(".well-known/") || methodRoute.StartsWith("/")
-                                ? methodRoute.TrimStart('/')
-                                : CombineRoute(routePrefix, methodRoute).ToLowerInvariant();
+                            // Determinar la ruta completa
+                            string fullRoute;
+                            if(string.IsNullOrEmpty(methodRoute) || methodRoute == "/")
+                            {
+                                // Ruta vacía o raíz
+                                fullRoute = routePrefix ?? "";
+                            }
+                            else if(methodRoute.StartsWith("/"))
+                            {
+                                // Ruta absoluta
+                                fullRoute = methodRoute.TrimStart('/');
+                            }
+                            else if(routePrefix != null)
+                            {
+                                // Ruta relativa con prefijo del controlador
+                                fullRoute = CombineRoute(routePrefix, methodRoute).ToLowerInvariant();
+                            }
+                            else
+                            {
+                                // Ruta relativa sin prefijo del controlador
+                                fullRoute = methodRoute;
+                            }
+
+                            if(string.IsNullOrEmpty(fullRoute))
+                            {
+                                _logger.LogWarning("Generated empty route for method {MethodKey}. Using fallback: {Fallback}", methodKey, method.Name.ToLowerInvariant());
+                                fullRoute = method.Name.ToLowerInvariant();
+                            }
 
                             if(!excludedRoutes.Any(excluded => fullRoute.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)))
                             {
@@ -137,7 +161,8 @@ internal class ControllerMetadataProvider : IMetadataProvider
                                 };
 
                                 result.Add(endpoint);
-                                _logger.LogInformation("Added endpoint: Id={Id}, Method={Method}, Route={Route}", endpoint.Id, httpMethod, fullRoute);
+                                _logger.LogInformation("Added endpoint: Id={Id}, Method={Method}, Route={Route}, Controller={Controller}, MethodRoute={MethodRoute}, RoutePrefix={RoutePrefix}",
+                                    endpoint.Id, httpMethod, fullRoute, controllerType.Name, methodRoute, routePrefix ?? "none");
                             }
                         }
                         processedMethods.Add(methodKey);
@@ -160,6 +185,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
             .Where(e => e.ReturnType != "Unknown" || e.Parameters.Any())
             .ToList();
 
+        _logger.LogInformation("Total endpoints generated: {Count}", filteredResult.Count);
         return filteredResult;
     }
 
@@ -177,8 +203,8 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
     private string CombineRoute(string prefix, string route)
     {
-        prefix = prefix.TrimEnd('/');
-        route = route.TrimStart('/');
+        prefix = prefix?.TrimEnd('/') ?? "";
+        route = route?.TrimStart('/') ?? "";
         return string.IsNullOrEmpty(route) ? prefix : $"{prefix}/{route}";
     }
 
