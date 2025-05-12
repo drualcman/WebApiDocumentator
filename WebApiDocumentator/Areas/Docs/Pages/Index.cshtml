@@ -135,7 +135,7 @@
             white-space: pre-wrap;
             word-wrap: break-word;
             overflow-y: auto;
-            max-height: 300px;
+            max-height: 65vh;
             margin: 10px 0;
         }
 
@@ -263,6 +263,14 @@
                 </a>
             }
             <p>@Model.Description</p>
+            @if(!string.IsNullOrWhiteSpace(Model.ExampleBodyJson))
+            {
+                <pre class="json-viewer">@Model.ExampleBodyJson</pre>
+            }
+            else
+            {
+                <p>No return schema available.</p>
+            }
         }
         else
         {

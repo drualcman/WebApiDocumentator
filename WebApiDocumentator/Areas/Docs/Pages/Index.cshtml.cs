@@ -65,6 +65,10 @@ internal class IndexModel : PageModel
             _logger.LogDebug("Available endpoints: {Endpoints}",
                 string.Join("; ", Groups.SelectMany(g => g.Endpoints)
                     .Select(e => $"Id={e.Id}, Method={e.HttpMethod}, Route={e.Route}")));
+            ExampleBodyJson = JsonSerializer.Serialize(Groups, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
         }
     }
 
