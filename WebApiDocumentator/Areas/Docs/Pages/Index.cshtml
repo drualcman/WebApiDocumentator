@@ -1,5 +1,8 @@
 @page
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using WebApiDocumentator.Models
 @using WebApiDocumentator.Areas.Docs.Pages
+@using WebApiDocumentator.Metadata
 @model WebApiDocumentator.Areas.Docs.Pages.IndexModel
 @{
     var selected = Model.SelectedEndpoint;
@@ -8,7 +11,7 @@
     var version = Model.GetApiVersion();
     var summary = selected?.Summary;
     var parameters = string.IsNullOrWhiteSpace(selected?.Description) ? [] : selected?.Description?.Split("\n") ?? [];
-
+    ViewData["SelectedEndpoint"] = selected;
 }
 
 <!DOCTYPE html>
@@ -59,6 +62,7 @@
             font-size: 0.85em;
             color: white;
             display: inline-block;
+            background: #000;
         }
 
         .GET {
@@ -79,6 +83,10 @@
 
         .PATCH {
             background: #17a2b8;
+        }
+
+        .HEAD {
+            background: #7d27aa;
         }
 
         a.endpoint-link {
@@ -221,6 +229,17 @@
             color: #007bff;
             font-weight: 600;
         }
+
+        /* Estilos para anidamiento */
+        ul ul {
+            margin-left: 20px;
+            padding-left: 10px;
+        }
+
+        li strong {
+            font-size: 0.95em;
+            color: #343a40;
+        }
     </style>
 </head>
 <body>
@@ -228,27 +247,8 @@
         <a class="endpoint-link" href="/docs">
             <h3>@Model.Name</h3>
         </a>
-        <h4>Endpoints</h4>
-        <ul>
-            @foreach(var group in Model.Groups)
-            {
-                <li>
-                    <strong>@group.PathPrefix</strong>
-                    <ul>
-                        @foreach(var endpoint in group.Endpoints)
-                        {
-                            var isSelected = selected != null && endpoint.Id == selected.Id;
-                            <li>
-                                <a class="endpoint-link @(isSelected ? "selected" : "")" href="?id=@endpoint.Id">
-                                    <span class="http-method @endpoint.HttpMethod">@endpoint.HttpMethod</span>
-                                    @endpoint.Route
-                                </a>
-                            </li>
-                        }
-                    </ul>
-                </li>
-            }
-        </ul>
+        <h4>Endpoints</h4>        
+        <partial name="EndpointNode" model="Model.Groups" view-data="ViewData" />
     </div>
 
     <div id="content">
@@ -396,7 +396,6 @@
                 <pre class="json-viewer">@Model.TestResponse</pre>
             }
         }
-
     </div>
 
     @if(selected != null)
@@ -406,44 +405,44 @@
 
             <h4>cURL</h4>
             <pre>
-            curl -X @selected.HttpMethod https://api.yourwebsite.com@selected.Route@if (Model.ExampleBodyJson != null)
-            {
+    curl -X @selected.HttpMethod https://api.yourwebsite.com@selected.Route@if (Model.ExampleBodyJson != null)
+    {
             <text> \
-                  -H "Content-Type: application/json" \
-                  -d '@Html.Raw(Model.ExampleBodyJson)'</text>
-            }
-                        </pre>
+          -H "Content-Type: application/json" \
+          -d '@Html.Raw(Model.ExampleBodyJson)'</text>
+    }
+                </pre>
 
             <h4>C# (HttpClient)</h4>
             <pre>
-            using var client = new HttpClient();
-            client.BaseAddress = new Uri("https://api.yourwebsite.com");
+    using var client = new HttpClient();
+    client.BaseAddress = new Uri("https://api.yourwebsite.com");
                 @if(Model.ExampleBodyJson != null)
                 {
                     <text>var content = new StringContent(@Html.Raw(Model.ExampleBodyJson), System.Text.Encoding.UTF8, "application/json");
-                                        var response = await client.@(selected.HttpMethod)Async("@selected.Route", content);</text>
+            var response = await client.@(selected.HttpMethod)Async("@selected.Route", content);</text>
                 }
                 else
                 {
                     <text>var response = await client.@(selected.HttpMethod)Async("@selected.Route");</text>
                 }
-            response.EnsureSuccessStatusCode();
-            var content = await response.Content.ReadAsStringAsync();
-                        </pre>
+    response.EnsureSuccessStatusCode();
+    var content = await response.Content.ReadAsStringAsync();
+                </pre>
 
             <h4>fetch (JavaScript)</h4>
             <pre>
-            fetch("https://api.yourwebsite.com@selected.Route", {
-                method: "@selected.HttpMethod"@if(Model.ExampleBodyJson != null)
+    fetch("https://api.yourwebsite.com@selected.Route", {
+        method: "@selected.HttpMethod"@if(Model.ExampleBodyJson != null)
                 {
                     <text>,
-                                            headers: { "Content-Type": "application/json" },
-                                            body: @Html.Raw(Model.ExampleBodyJson)</text>
+                headers: { "Content-Type": "application/json" },
+                body: @Html.Raw(Model.ExampleBodyJson)</text>
                 }
-            })
-            .then(res => res.json())
-            .then(data => console.log(data));
-                        </pre>
+    })
+    .then(res => res.json())
+    .then(data => console.log(data));
+                </pre>
         </div>
     }
 </body>

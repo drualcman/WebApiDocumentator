@@ -8,7 +8,7 @@ internal class IndexModel : PageModel
     private readonly IApiDescriptionGroupCollectionProvider _provider;
     private readonly ILogger<IndexModel> _logger;
 
-    public List<ApiGroupInfo> Groups { get; private set; } = new();
+    public List<EndpointGroupNode> Groups { get; private set; } = new();
     public ApiEndpointInfo? SelectedEndpoint { get; private set; }
     public string? ExampleBodyJson { get; private set; }
 
@@ -41,14 +41,14 @@ internal class IndexModel : PageModel
         {
             _logger.LogInformation("Received query Id: {Id}", id);
             SelectedEndpoint = Groups
-                .SelectMany(g => g.Endpoints)
+                .SelectMany(g => GetAllEndpoints(g))
                 .FirstOrDefault(e => e.Id == id);
 
             if(SelectedEndpoint == null)
             {
                 _logger.LogWarning("Endpoint with Id {Id} not found. Available endpoints: {Endpoints}",
                     id,
-                    string.Join("; ", Groups.SelectMany(g => g.Endpoints)
+                    string.Join("; ", Groups.SelectMany(g => GetAllEndpoints(g))
                         .Select(e => $"Id={e.Id}, Method={e.HttpMethod}, Route={e.Route}")));
             }
             else
@@ -61,9 +61,8 @@ internal class IndexModel : PageModel
         else
         {
             _logger.LogInformation("No Id provided in query. Displaying default view.");
-            // Log all available endpoints for debugging
             _logger.LogDebug("Available endpoints: {Endpoints}",
-                string.Join("; ", Groups.SelectMany(g => g.Endpoints)
+                string.Join("; ", Groups.SelectMany(g => GetAllEndpoints(g))
                     .Select(e => $"Id={e.Id}, Method={e.HttpMethod}, Route={e.Route}")));
             ExampleBodyJson = JsonSerializer.Serialize(Groups, new JsonSerializerOptions
             {
@@ -82,9 +81,8 @@ internal class IndexModel : PageModel
 
         Groups = _metadataProvider.GetGroupedEndpoints();
 
-        // Use Id if available, fallback to method and route
         SelectedEndpoint = Groups
-            .SelectMany(g => g.Endpoints)
+            .SelectMany(g => GetAllEndpoints(g))
             .FirstOrDefault(e => e.Id == TestInput.Id ||
                                 (e.HttpMethod.Equals(TestInput.Method, StringComparison.OrdinalIgnoreCase) &&
                                  e.Route.Equals(TestInput.Route, StringComparison.OrdinalIgnoreCase)));
@@ -97,7 +95,6 @@ internal class IndexModel : PageModel
 
         ExampleBodyJson = SelectedEndpoint.ExampleJson;
 
-        // Validate required parameters
         foreach(var param in SelectedEndpoint.Parameters.Where(p => p.IsRequired))
         {
             if(!TestInput.Parameters.ContainsKey(param.Name) || string.IsNullOrEmpty(TestInput.Parameters[param.Name]))
@@ -113,10 +110,8 @@ internal class IndexModel : PageModel
             return Page();
         }
 
-        // Build URL with route and query parameters
         var requestUrl = TestInput.Route;
 
-        // Handle route parameters (Source = "Path")
         foreach(var param in SelectedEndpoint.Parameters.Where(p => p.Source == "Path" && TestInput.Parameters.ContainsKey(p.Name)))
         {
             var paramValue = HttpUtility.UrlEncode(TestInput.Parameters[param.Name] ?? "");
@@ -124,7 +119,6 @@ internal class IndexModel : PageModel
             _logger.LogInformation("Replaced route parameter: {{{ParamName}}} -> {ParamValue}", param.Name, paramValue);
         }
 
-        // Handle query parameters (Source = "Query")
         var queryParams = SelectedEndpoint.Parameters
             .Where(p => p.Source == "Query" && TestInput.Parameters.ContainsKey(p.Name))
             .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(TestInput.Parameters[p.Name] ?? "")}")
@@ -141,7 +135,6 @@ internal class IndexModel : PageModel
 
         var request = new HttpRequestMessage(new HttpMethod(TestInput.Method), requestUrl);
 
-        // Handle IsFromBody parameters
         if(SelectedEndpoint.Parameters.Any(p => p.IsFromBody))
         {
             var bodyParam = SelectedEndpoint.Parameters.FirstOrDefault(p => p.IsFromBody);
@@ -184,7 +177,6 @@ internal class IndexModel : PageModel
 
             if(!response.IsSuccessStatusCode)
             {
-                // Try parsing as Problem Details
                 try
                 {
                     var problemDetails = JsonSerializer.Deserialize<JsonNode>(responseContent);
@@ -252,5 +244,15 @@ internal class IndexModel : PageModel
         }
 
         return JsonSerializer.Serialize(flatSchema, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private IEnumerable<ApiEndpointInfo> GetAllEndpoints(EndpointGroupNode node)
+    {
+        var endpoints = new List<ApiEndpointInfo>(node.Endpoints);
+        foreach(var child in node.Children)
+        {
+            endpoints.AddRange(GetAllEndpoints(child));
+        }
+        return endpoints;
     }
 }

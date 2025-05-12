@@ -1,0 +1,44 @@
+@model IEnumerable<WebApiDocumentator.Models.EndpointGroupNode>
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using WebApiDocumentator.Models
+@using WebApiDocumentator.Areas.Docs.Pages
+@using WebApiDocumentator.Metadata
+
+
+<ul>
+    @foreach(var node in Model)
+    {
+        <li>
+            <strong>@node.Name</strong>
+            @if(node.Endpoints.Any())
+            {
+                <ul>
+                    @{
+                        // Agrupar endpoints por Route para manejar múltiples métodos
+                        var groupedEndpoints = node.Endpoints
+                        .GroupBy(e => e.Route)
+                        .OrderBy(g => g.Key);
+                    }
+                    @foreach(var group in groupedEndpoints)
+                    {
+                        var endpoints = group.ToList();
+                        var methods = endpoints.Select(e => e.HttpMethod).Distinct().OrderBy(m => m).ToList();
+                        var methodDisplay = methods.Count > 1 ? $"({string.Join(", ", methods)})" : methods.First();
+                        var firstEndpoint = endpoints.First();
+                        var isSelected = ViewData["SelectedEndpoint"] as ApiEndpointInfo != null && endpoints.Any(e => e.Id == (ViewData["SelectedEndpoint"] as ApiEndpointInfo).Id);
+                        <li>
+                            <a class="endpoint-link @(isSelected ? "selected" : "")" href="?id=@firstEndpoint.Id">
+                                <span class="http-method @firstEndpoint.HttpMethod">@methodDisplay</span>
+                                @group.Key
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+            @if(node.Children.Any())
+            {
+                <partial name="EndpointNode" model="node.Children" view-data="ViewData" />
+            }
+        </li>
+    }
+</ul>
