@@ -1,6 +1,4 @@
-﻿using System.Text.Json;
-
-namespace WebApiDocumentator.Handlers;
+﻿namespace WebApiDocumentator.Handlers;
 
 internal class JsonSchemaGenerator
 {
@@ -34,6 +32,18 @@ internal class JsonSchemaGenerator
             return null;
 
         processedTypes ??= new HashSet<Type>();
+
+        // Manejar Task<T> y Task
+        if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
+        {
+            var innerType = type.GetGenericArguments()[0];
+            return GenerateJsonSchema(innerType, processedTypes, includeExample);
+        }
+        if(type == typeof(Task))
+        {
+            // Task sin valor de retorno (void)
+            return null;
+        }
 
         var schema = new Dictionary<string, object>();
 
@@ -152,39 +162,39 @@ internal class JsonSchemaGenerator
 
     private Dictionary<string, object> GenerateExampleForType(Type type, HashSet<Type> processedTypes)
     {
-        if(type.IsPrimitive || type == typeof(string))
+        if(!type.IsPrimitive && type != typeof(string))
         {
-            return null; // Los ejemplos simples ya se manejan en GetExampleValue
-        }
+            var example = new Dictionary<string, object>();
 
-        var example = new Dictionary<string, object>();
+            foreach(var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                var propType = prop.PropertyType;
+                var propName = ToCamelCase(prop.Name);
 
-        foreach(var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-        {
-            var propType = prop.PropertyType;
-            var propName = ToCamelCase(prop.Name);
-
-            if(propType.IsPrimitive || propType == typeof(string))
-            {
-                example[propName] = GetExampleValue(propType);
-            }
-            else if(propType == typeof(DateOnly) || propType == typeof(DateTime))
-            {
-                example[propName] = DateTime.Now.ToString("yyyy-MM-dd");
-            }
-            else if(propType.IsClass)
-            {
-                // Para propiedades complejas, generar un ejemplo simple
-                var complexExample = new Dictionary<string, object>();
-                foreach(var subProp in propType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                if(propType.IsPrimitive || propType == typeof(string))
                 {
-                    complexExample[ToCamelCase(subProp.Name)] = GetExampleValue(subProp.PropertyType);
+                    example[propName] = GetExampleValue(propType);
                 }
-                example[propName] = complexExample;
+                else if(propType == typeof(DateOnly) || propType == typeof(DateTime))
+                {
+                    example[propName] = DateTime.Now.ToString("yyyy-MM-dd");
+                }
+                else if(propType.IsClass)
+                {
+                    // Para propiedades complejas, generar un ejemplo simple
+                    var complexExample = new Dictionary<string, object>();
+                    foreach(var subProp in propType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                    {
+                        complexExample[ToCamelCase(subProp.Name)] = GetExampleValue(subProp.PropertyType);
+                    }
+                    example[propName] = complexExample;
+                }
             }
+
+            return example;
         }
 
-        return example;
+        return null;
     }
 
     private string ToCamelCase(string input)

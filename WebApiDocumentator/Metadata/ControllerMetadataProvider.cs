@@ -104,7 +104,25 @@ internal class ControllerMetadataProvider : IMetadataProvider
                                     }
                                 }
 
-                                var schema = _schemaGenerator.GenerateJsonSchema(method.ReturnType, new HashSet<Type>());
+                                // Determinar el tipo de retorno
+                                Type returnType = method.ReturnType;
+                                var producesResponse = method.GetCustomAttributes()
+                                    .OfType<ProducesResponseTypeAttribute>()
+                                    .FirstOrDefault(attr => attr.StatusCode == 200);
+                                if(producesResponse != null && producesResponse.Type != null)
+                                {
+                                    returnType = producesResponse.Type;
+                                }
+                                else if(returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+                                {
+                                    returnType = returnType.GetGenericArguments()[0];
+                                }
+                                else if(returnType == typeof(Task))
+                                {
+                                    returnType = typeof(void);
+                                }
+
+                                var schema = _schemaGenerator.GenerateJsonSchema(returnType, new HashSet<Type>());
                                 var endpoint = new ApiEndpointInfo
                                 {
                                     Id = EndpointHelper.GenerateEndpointId(httpMethod, fullRoute),
@@ -112,7 +130,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
                                     Route = fullRoute,
                                     Summary = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, method)?.Trim().TrimEnd('.') ?? method.Name,
                                     Description = description,
-                                    ReturnType = TypeNameHelper.GetFriendlyTypeName(method.ReturnType),
+                                    ReturnType = TypeNameHelper.GetFriendlyTypeName(returnType),
                                     ReturnSchema = schema,
                                     Parameters = parameters,
                                     ExampleJson = _schemaGenerator.GetExampleAsJsonString(schema)

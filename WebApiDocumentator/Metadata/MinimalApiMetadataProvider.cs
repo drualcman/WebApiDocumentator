@@ -60,8 +60,26 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                         p => !IsHttpContextOrService(p.ParameterType),
                         endpoint.Metadata);
 
-                    var returnType = TypeNameHelper.GetFriendlyTypeName(methodInfo.ReturnType);
-                    var returnSchema = _schemaGenerator.GenerateJsonSchema(methodInfo.ReturnType, new HashSet<Type>());
+                    // Determinar el tipo de retorno
+                    Type returnType = methodInfo.ReturnType;
+                    if(returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+                    {
+                        returnType = returnType.GetGenericArguments()[0];
+                    }
+                    else if(returnType == typeof(Task))
+                    {
+                        returnType = typeof(void);
+                    }
+
+                    var producesMetadata = endpoint.Metadata
+                        .OfType<IProducesResponseTypeMetadata>()
+                        .FirstOrDefault();
+                    if(producesMetadata != null && producesMetadata.Type != null)
+                    {
+                        returnType = producesMetadata.Type;
+                    }
+
+                    var returnSchema = _schemaGenerator.GenerateJsonSchema(returnType, new HashSet<Type>());
                     var exampleJson = _schemaGenerator.GetExampleAsJsonString(returnSchema);
 
                     if(typeof(IResult).IsAssignableFrom(methodInfo.ReturnType))
@@ -69,7 +87,7 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                         var resultType = InferResultType(methodInfo, endpoint.Metadata);
                         if(resultType != null)
                         {
-                            returnType = TypeNameHelper.GetFriendlyTypeName(resultType);
+                            returnType = resultType;
                             returnSchema = _schemaGenerator.GenerateJsonSchema(resultType, new HashSet<Type>());
                             exampleJson = _schemaGenerator.GetExampleAsJsonString(returnSchema);
                         }
@@ -95,12 +113,12 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
 
                     var endpointInfo = new ApiEndpointInfo
                     {
-                        Id = EndpointHelper.GenerateEndpointId(httpMethods[0], endpoint.RoutePattern.RawText?.ToLowerInvariant() ?? ""), // Assign unique identifier
+                        Id = EndpointHelper.GenerateEndpointId(httpMethods[0], endpoint.RoutePattern.RawText?.ToLowerInvariant() ?? ""),
                         Route = endpoint.RoutePattern.RawText?.ToLowerInvariant() ?? "",
                         HttpMethod = httpMethods[0],
                         Summary = summary,
                         Description = cleanDescription,
-                        ReturnType = returnType,
+                        ReturnType = TypeNameHelper.GetFriendlyTypeName(returnType),
                         Parameters = parameters,
                         ReturnSchema = returnSchema,
                         ExampleJson = exampleJson
