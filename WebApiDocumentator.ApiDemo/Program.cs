@@ -30,6 +30,7 @@ if(app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.MapControllers();
+app.UseWebApiDocumentatorUi();
 
 
 var summaries = new[]
@@ -76,7 +77,6 @@ app.MapPost("/algo/{id}", (int id, DocumentatorOptions data, IHttpClientFactory 
         return data;
     });
 
-app.UseWebApiDocumentatorUi();
 
 app.Run();
 

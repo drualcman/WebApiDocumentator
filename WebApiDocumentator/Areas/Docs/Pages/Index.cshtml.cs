@@ -1,12 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.ApiExplorer;
-using Microsoft.Extensions.Options;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Web;
-using WebApiDocumentator.Models;
-using WebApiDocumentator.Options;
-
-namespace WebApiDocumentator.Areas.Docs.Pages;
+﻿namespace WebApiDocumentator.Areas.Docs.Pages;
 
 internal class IndexModel : PageModel
 {
@@ -61,7 +53,7 @@ internal class IndexModel : PageModel
             }
             else
             {
-                _logger.LogInformation("Found endpoint: Id={Id}, Method={Method}, Route={Route}",
+                _logger.LogDebug("Found endpoint: Id={Id}, Method={Method}, Route={Route}",
                     SelectedEndpoint.Id, SelectedEndpoint.HttpMethod, SelectedEndpoint.Route);
                 ExampleBodyJson = SelectedEndpoint.ExampleJson;
             }
@@ -70,7 +62,7 @@ internal class IndexModel : PageModel
         {
             _logger.LogInformation("No Id provided in query. Displaying default view.");
             // Log all available endpoints for debugging
-            _logger.LogInformation("Available endpoints: {Endpoints}",
+            _logger.LogDebug("Available endpoints: {Endpoints}",
                 string.Join("; ", Groups.SelectMany(g => g.Endpoints)
                     .Select(e => $"Id={e.Id}, Method={e.HttpMethod}, Route={e.Route}")));
         }

@@ -19,7 +19,7 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
     public List<ApiEndpointInfo> GetEndpoints()
     {
         var endpoints = new List<ApiEndpointInfo>();
-        var excludedRoutes = new[] { "/get-metadata", "/openapi" };
+        var excludedRoutes = new[] { "/openapi" };
 
         var endpointToTrace = _endpointDataSource.Endpoints
             .OfType<RouteEndpoint>()

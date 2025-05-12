@@ -24,7 +24,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
     public List<ApiEndpointInfo> GetEndpoints()
     {
         var result = new List<ApiEndpointInfo>();
-        var excludedRoutes = new[] { "/get-metadata", "/openapi" };
+        var excludedRoutes = new[] { "/openapi" };
         var processedControllers = new HashSet<Type>();
         var processedMethods = new HashSet<string>();
 
