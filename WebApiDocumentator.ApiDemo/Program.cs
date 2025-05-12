@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using WebApiDocumentator.ApiDemo.Services;
 using WebApiDocumentator.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +20,7 @@ builder.Services.AddMyApiDocs(options =>
     options.Version = "v1";
     options.Description = "The best API in the world!";
 });
+builder.Services.AddScoped<SomeServicio>();
 
 var app = builder.Build();
 
@@ -38,7 +40,7 @@ var summaries = new[]
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
 };
 
-app.MapGet("/debug/routes", (IEnumerable<EndpointDataSource> endpointSources) =>
+app.MapPost("/debug/routes", (IEnumerable<EndpointDataSource> endpointSources) =>
 {
     var routes = endpointSources
         .SelectMany(source => source.Endpoints)

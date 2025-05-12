@@ -8,6 +8,7 @@ public static class ServiceCollectionExtensions
         Action<DocumentatorOptions> configure)
     {
         services.Configure(configure);
+        services.AddSingleton<IParameterSourceResolver, ParameterSourceResolver>();
         services.AddSingleton<IMetadataProvider, MinimalApiMetadataProvider>();
         services.AddSingleton<IMetadataProvider, ControllerMetadataProvider>();
         services.AddSingleton<CompositeMetadataProvider>();

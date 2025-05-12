@@ -8,7 +8,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
     private readonly ParameterDescriptionBuilder _descriptionBuilder;
     private readonly JsonSchemaGenerator _schemaGenerator;
 
-    public ControllerMetadataProvider(ILogger<ControllerMetadataProvider> logger)
+    public ControllerMetadataProvider(ILogger<ControllerMetadataProvider> logger, IParameterSourceResolver sourceResolver)
     {
         var entryAssembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
         _assemblies = new[] { entryAssembly }
@@ -19,7 +19,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
             .ToArray();
         var loader = new XmlDocumentationLoader(logger);
         _xmlDocs = loader.LoadXmlDocumentation(_assemblies);
-        _descriptionBuilder = new ParameterDescriptionBuilder(_xmlDocs, logger);
+        _descriptionBuilder = new ParameterDescriptionBuilder(_xmlDocs, logger, sourceResolver);
         _schemaGenerator = new JsonSchemaGenerator(_xmlDocs);
         _logger = logger;
     }

@@ -4,11 +4,16 @@ internal class ParameterDescriptionBuilder
 {
     private readonly Dictionary<string, string> _xmlDocs;
     private readonly ILogger _logger;
+    private readonly IParameterSourceResolver _parameterSourceResolver;
 
-    public ParameterDescriptionBuilder(Dictionary<string, string> xmlDocs, ILogger logger)
+    public ParameterDescriptionBuilder(
+        Dictionary<string, string> xmlDocs,
+        ILogger logger,
+        IParameterSourceResolver parameterSourceResolver)
     {
-        _xmlDocs = xmlDocs;
-        _logger = logger;
+        _xmlDocs = xmlDocs ?? throw new ArgumentNullException(nameof(xmlDocs));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _parameterSourceResolver = parameterSourceResolver ?? throw new ArgumentNullException(nameof(parameterSourceResolver));
     }
 
     public (List<ApiParameterInfo> Parameters, string Description) BuildParameters(
@@ -19,30 +24,26 @@ internal class ParameterDescriptionBuilder
     {
         var parameters = new List<ApiParameterInfo>();
         var methodXmlKey = XmlDocumentationHelper.GetXmlMemberName(method);
-
-        // Build description with all XML tags
         var descriptionBuilder = new StringBuilder();
-        // Build parameter descriptions
+        var validParameterNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach(var param in method.GetParameters())
         {
             if(parameterFilter == null || parameterFilter(param))
             {
-                // Skip invalid or compiler-generated parameter names
                 if(IsInvalidParameterName(param.Name))
                 {
                     _logger.LogWarning("Skipping invalid parameter name '{ParamName}' for method {MethodKey}", param.Name, methodXmlKey);
                     continue;
                 }
 
-                var paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name) ?? "Route parameter";
+                var paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name) ?? "Parameter";
                 paramDescription = paramDescription.Trim().TrimEnd('.');
                 var paramType = TypeNameHelper.GetFriendlyTypeName(param.ParameterType);
-                var paramSource = metadata != null
-                    ? ParameterSourceResolver.GetParameterSource(param, routeParameters, metadata)
-                    : ParameterSourceResolver.GetParameterSource(param, routeParameters);
+                var paramSource = _parameterSourceResolver.GetParameterSource(param, routeParameters, metadata);
 
                 var fromQueryAttr = param.GetCustomAttribute<FromQueryAttribute>();
-                if(!paramSource.Equals("Service"))
+                if(!paramSource.Equals("Service", StringComparison.OrdinalIgnoreCase))
                 {
                     if(fromQueryAttr != null && !param.ParameterType.IsPrimitive && param.ParameterType != typeof(string))
                     {
@@ -52,7 +53,7 @@ internal class ParameterDescriptionBuilder
                             propDescription = propDescription.Trim().TrimEnd('.');
                             var propType = TypeNameHelper.GetFriendlyTypeName(prop.PropertyType);
 
-                            parameters.Add(new ApiParameterInfo
+                            var paramModel = new ApiParameterInfo
                             {
                                 Name = prop.Name,
                                 Type = propType,
@@ -61,37 +62,41 @@ internal class ParameterDescriptionBuilder
                                 IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null,
                                 Description = propDescription,
                                 Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(prop.PropertyType, new HashSet<Type>())
-                            });
+                            };
+                            parameters.Add(paramModel);
+                            validParameterNames.Add(prop.Name);
                         }
                     }
                     else
                     {
-                        parameters.Add(new ApiParameterInfo
+                        var isFromBody = paramSource.Equals("Body", StringComparison.OrdinalIgnoreCase);
+                        var paramModel = new ApiParameterInfo
                         {
                             Name = param.Name ?? "unnamed_parameter",
                             Type = paramType,
-                            IsFromBody = param.GetCustomAttribute<FromBodyAttribute>() != null ||
-                                         (metadata?.OfType<IAcceptsMetadata>()
-                                             .Any(m => m.RequestType == param.ParameterType && m.ContentTypes.Contains("application/json")) ?? false),
+                            IsFromBody = isFromBody,
                             Source = paramSource,
                             IsRequired = param.GetCustomAttribute<RequiredAttribute>() != null || !param.IsOptional,
                             Description = paramDescription,
-                            Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(param.ParameterType, new HashSet<Type>())
-                        });
+                            Schema = isFromBody ? new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(param.ParameterType, new HashSet<Type>()) : null
+                        };
+                        parameters.Add(paramModel);
+                        validParameterNames.Add(param.Name);
                     }
                 }
                 else
                 {
+                    _logger.LogDebug("Excluded service parameter: {ParamName} ({ParamType}) for method {MethodName}",
+                        param.Name, paramType, method.Name);
                     descriptionBuilder.AppendLine($"Service: {TypeNameHelper.GetFriendlyTypeName(param.ParameterType)}");
                 }
             }
         }
 
-        // Add parameter descriptions
+        // Generar descripción solo para parámetros válidos
         foreach(var param in method.GetParameters())
         {
-            // Skip invalid parameter names in description
-            if(!IsInvalidParameterName(param.Name))
+            if(!IsInvalidParameterName(param.Name) && validParameterNames.Contains(param.Name))
             {
                 var paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name);
                 if(!string.IsNullOrWhiteSpace(paramDescription))
@@ -102,14 +107,12 @@ internal class ParameterDescriptionBuilder
             }
         }
 
-        // Add returns description
         var returns = XmlDocumentationHelper.GetXmlReturns(_xmlDocs, method);
         if(!string.IsNullOrWhiteSpace(returns))
         {
             descriptionBuilder.AppendLine($"Returns: {returns.Trim().TrimEnd('.')}");
         }
 
-        // Add other XML tags (e.g., <remarks>) if needed
         var remarks = XmlDocumentationHelper.GetXmlRemarks(_xmlDocs, method);
         if(!string.IsNullOrWhiteSpace(remarks))
         {
@@ -122,17 +125,16 @@ internal class ParameterDescriptionBuilder
             description = method.Name;
         }
 
+        _logger.LogInformation("Built parameters for method {MethodName}: {Parameters}",
+            method.Name,
+            string.Join(", ", parameters.Select(p => $"{p.Name} ({p.Source})")));
         return (parameters, description);
     }
 
     private bool IsInvalidParameterName(string? name)
     {
         if(string.IsNullOrWhiteSpace(name))
-        {
             return true;
-        }
-
-        // Check for common compiler-generated name patterns
         return name.Contains("<") || name.Contains(">") || name.Contains("$") || name.StartsWith("b__");
     }
 }
