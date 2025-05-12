@@ -143,7 +143,16 @@ internal class CompositeMetadataProvider
                     }
                 }
 
-                groupNode.Children.Add(subNode);
+                // Colapsar subNode si tiene un solo endpoint y no tiene hijos
+                if(subNode.Endpoints.Count == 1 && subNode.Children.Count == 0)
+                {
+                    groupNode.Endpoints.AddRange(subNode.Endpoints);
+                    _logger.LogInformation("Collapsed single-endpoint node {NodeName} into {ParentNode}", subNode.Name, groupNode.Name);
+                }
+                else
+                {
+                    groupNode.Children.Add(subNode);
+                }
             }
 
             rootNodes.Add(groupNode);

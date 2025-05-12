@@ -13,23 +13,13 @@
             @if(node.Endpoints.Any())
             {
                 <ul>
-                    @{
-                        // Agrupar endpoints por Route para manejar múltiples métodos
-                        var groupedEndpoints = node.Endpoints
-                        .GroupBy(e => e.Route)
-                        .OrderBy(g => g.Key);
-                    }
-                    @foreach(var group in groupedEndpoints)
+                    @foreach(var endpoint in node.Endpoints.OrderBy(e => e.Route).ThenBy(e => e.HttpMethod))
                     {
-                        var endpoints = group.ToList();
-                        var methods = endpoints.Select(e => e.HttpMethod).Distinct().OrderBy(m => m).ToList();
-                        var methodDisplay = methods.Count > 1 ? $"({string.Join(", ", methods)})" : methods.First();
-                        var firstEndpoint = endpoints.First();
-                        var isSelected = ViewData["SelectedEndpoint"] as ApiEndpointInfo != null && endpoints.Any(e => e.Id == (ViewData["SelectedEndpoint"] as ApiEndpointInfo).Id);
+                        var isSelected = ViewData["SelectedEndpoint"] as ApiEndpointInfo != null && endpoint.Id == (ViewData["SelectedEndpoint"] as ApiEndpointInfo).Id;
                         <li>
-                            <a class="endpoint-link @(isSelected ? "selected" : "")" href="?id=@firstEndpoint.Id">
-                                <span class="http-method @firstEndpoint.HttpMethod">@methodDisplay</span>
-                                @group.Key
+                            <a class="endpoint-link @(isSelected ? "selected" : "")" href="?id=@endpoint.Id">
+                                <span class="http-method @endpoint.HttpMethod">@endpoint.HttpMethod</span>
+                                @endpoint.Route
                             </a>
                         </li>
                     }
