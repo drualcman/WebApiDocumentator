@@ -2,7 +2,7 @@
 
 internal class ControllerMetadataProvider : IMetadataProvider
 {
-    private readonly Assembly _assembly;
+    private readonly Assembly[] _assemblies;
     private readonly Dictionary<string, string> _xmlDocs;
     private readonly ILogger<ControllerMetadataProvider> _logger;
     private readonly ParameterDescriptionBuilder _descriptionBuilder;
@@ -10,12 +10,15 @@ internal class ControllerMetadataProvider : IMetadataProvider
 
     public ControllerMetadataProvider(ILogger<ControllerMetadataProvider> logger)
     {
-        _assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+        var entryAssembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+        _assemblies = new[] { entryAssembly }
+            .Concat(entryAssembly.GetReferencedAssemblies()
+                .Select(asm => Assembly.Load(asm))
+                .Where(asm => asm != null))
+            .Distinct()
+            .ToArray();
         var loader = new XmlDocumentationLoader(logger);
-        var assemblies = new[] { _assembly }
-            .Concat(_assembly.GetReferencedAssemblies()
-                .Select(asm => Assembly.Load(asm)));
-        _xmlDocs = loader.LoadXmlDocumentation(assemblies);
+        _xmlDocs = loader.LoadXmlDocumentation(_assemblies);
         _descriptionBuilder = new ParameterDescriptionBuilder(_xmlDocs, logger);
         _schemaGenerator = new JsonSchemaGenerator(_xmlDocs);
         _logger = logger;
@@ -28,8 +31,9 @@ internal class ControllerMetadataProvider : IMetadataProvider
         var processedControllers = new HashSet<Type>();
         var processedMethods = new HashSet<string>();
 
-        var controllerTypes = _assembly.GetTypes()
-            .Where(t => typeof(ControllerBase).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface)
+        var controllerTypes = _assemblies
+            .SelectMany(asm => asm.GetTypes())
+            .Where(t => t.GetCustomAttribute<ApiControllerAttribute>() != null && !t.IsAbstract && !t.IsInterface)
             .Distinct()
             .OrderBy(t => t.FullName)
             .ToList();
@@ -47,6 +51,7 @@ internal class ControllerMetadataProvider : IMetadataProvider
                 var routePrefix = routeAttr?.Template?.Replace("[controller]", controllerName).ToLowerInvariant() ?? controllerName;
 
                 var methods = controllerType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
+                    .Where(m => m.GetCustomAttributes().OfType<HttpMethodAttribute>().Any())
                     .OrderBy(m => m.Name)
                     .ToList();
 
@@ -61,68 +66,63 @@ internal class ControllerMetadataProvider : IMetadataProvider
                             .OfType<HttpMethodAttribute>()
                             .ToList();
 
-                        if(httpAttrs.Any())
+                        foreach(var httpAttr in httpAttrs)
                         {
-                            if(httpAttrs.Count > 1)
-                            {
-                                _logger.LogInformation("Multiple HttpMethodAttribute found on method {MethodName}. Processing all routes: {Routes}",
-                                    method.Name,
-                                    string.Join(", ", httpAttrs.Select(a => $"{a.HttpMethods.FirstOrDefault()} {a.Template}")));
-                            }
+                            var httpMethod = httpAttr.HttpMethods.FirstOrDefault()?.ToUpper() ?? "UNKNOWN";
+                            var methodRoute = httpAttr.Template?.ToLowerInvariant() ?? GetMethodRoute(method).ToLowerInvariant();
 
-                            foreach(var httpAttr in httpAttrs)
-                            {
-                                var httpMethod = httpAttr.HttpMethods.FirstOrDefault()?.ToUpper() ?? "UNKNOWN";
-                                var methodRoute = httpAttr.Template?.ToLowerInvariant() ?? GetMethodRoute(method).ToLowerInvariant();
-                                var fullRoute = CombineRoute(routePrefix, methodRoute).ToLowerInvariant();
+                            // Usar la ruta absoluta si está definida, sin combinar con el prefijo
+                            var fullRoute = methodRoute.StartsWith(".well-known/") || methodRoute.StartsWith("/")
+                                ? methodRoute.TrimStart('/')
+                                : CombineRoute(routePrefix, methodRoute).ToLowerInvariant();
 
-                                if(!excludedRoutes.Any(excluded => fullRoute.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)))
+                            if(!excludedRoutes.Any(excluded => fullRoute.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                var routeParameters = GetRouteParameters(fullRoute);
+
+                                var (parameters, description) = _descriptionBuilder.BuildParameters(method, routeParameters);
+
+                                // Log si falta descripción o resumen
+                                if(string.IsNullOrWhiteSpace(description))
                                 {
-                                    var routeParameters = GetRouteParameters(fullRoute);
+                                    description = $"Handles {httpMethod} requests for {fullRoute}";
+                                    _logger.LogWarning("No XML summary found for method {MethodKey}. Using fallback: {Fallback}", methodKey, description);
+                                }
 
-                                    var (parameters, description) = _descriptionBuilder.BuildParameters(method, routeParameters);
-
-                                    // Log if description or summary is missing
-                                    if(string.IsNullOrWhiteSpace(description))
+                                // Asegurar descripciones de parámetros
+                                var methodXmlKey = XmlDocumentationHelper.GetXmlMemberName(method);
+                                foreach(var param in parameters)
+                                {
+                                    if(string.IsNullOrWhiteSpace(param.Description))
                                     {
-                                        description = $"Handles {httpMethod} requests for {fullRoute}";
-                                        _logger.LogWarning("No XML summary found for method {MethodKey}. Using fallback: {Fallback}", methodKey, description);
-                                    }
-
-                                    // Ensure parameter descriptions are set
-                                    var methodXmlKey = XmlDocumentationHelper.GetXmlMemberName(method);
-                                    foreach(var param in parameters)
-                                    {
-                                        if(string.IsNullOrWhiteSpace(param.Description))
+                                        var paramXml = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name) ?? "Route parameter";
+                                        param.Description = paramXml.Trim().TrimEnd('.');
+                                        if(param.Description == "Route parameter")
                                         {
-                                            var paramXml = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name) ?? "Route parameter";
-                                            param.Description = paramXml.Trim().TrimEnd('.');
-                                            if(param.Description == "Route parameter")
-                                            {
-                                                _logger.LogWarning("No XML <param> documentation found for parameter {ParamName} in method {MethodKey}", param.Name, methodKey);
-                                            }
+                                            _logger.LogWarning("No XML <param> documentation found for parameter {ParamName} in method {MethodKey}", param.Name, methodKey);
                                         }
                                     }
-                                    var schema = _schemaGenerator.GenerateJsonSchema(method.ReturnType, new HashSet<Type>());
-                                    var endpoint = new ApiEndpointInfo
-                                    {
-                                        Id = EndpointHelper.GenerateEndpointId(httpMethod, fullRoute), // Hash-based ID
-                                        HttpMethod = httpMethod,
-                                        Route = fullRoute,
-                                        Summary = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, method)?.Trim().TrimEnd('.') ?? method.Name,
-                                        Description = description,
-                                        ReturnType = TypeNameHelper.GetFriendlyTypeName(method.ReturnType),
-                                        ReturnSchema = schema,
-                                        Parameters = parameters,
-                                        ExampleJson = _schemaGenerator.GetExampleAsJsonString(schema)
-                                    };
-
-                                    result.Add(endpoint);
-                                    _logger.LogInformation("Added endpoint: Id={Id}, Method={Method}, Route={Route}", endpoint.Id, httpMethod, fullRoute);
                                 }
+
+                                var schema = _schemaGenerator.GenerateJsonSchema(method.ReturnType, new HashSet<Type>());
+                                var endpoint = new ApiEndpointInfo
+                                {
+                                    Id = EndpointHelper.GenerateEndpointId(httpMethod, fullRoute),
+                                    HttpMethod = httpMethod,
+                                    Route = fullRoute,
+                                    Summary = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, method)?.Trim().TrimEnd('.') ?? method.Name,
+                                    Description = description,
+                                    ReturnType = TypeNameHelper.GetFriendlyTypeName(method.ReturnType),
+                                    ReturnSchema = schema,
+                                    Parameters = parameters,
+                                    ExampleJson = _schemaGenerator.GetExampleAsJsonString(schema)
+                                };
+
+                                result.Add(endpoint);
+                                _logger.LogInformation("Added endpoint: Id={Id}, Method={Method}, Route={Route}", endpoint.Id, httpMethod, fullRoute);
                             }
-                            processedMethods.Add(methodKey);
                         }
+                        processedMethods.Add(methodKey);
                     }
                 }
             }

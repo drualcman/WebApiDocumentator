@@ -11,7 +11,14 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
     {
         _endpointDataSource = endpointDataSource;
         var loader = new XmlDocumentationLoader(logger);
-        _xmlDocs = loader.LoadXmlDocumentation(Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly());
+        var entryAssembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+        var assemblies = new[] { entryAssembly }
+            .Concat(entryAssembly.GetReferencedAssemblies()
+                .Select(asm => Assembly.Load(asm))
+                .Where(asm => asm != null))
+            .Distinct()
+            .ToArray();
+        _xmlDocs = loader.LoadXmlDocumentation(assemblies);
         _descriptionBuilder = new ParameterDescriptionBuilder(_xmlDocs, logger);
         _schemaGenerator = new JsonSchemaGenerator(_xmlDocs);
     }
