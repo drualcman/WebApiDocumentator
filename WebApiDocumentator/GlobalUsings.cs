@@ -23,3 +23,4 @@ global using WebApiDocumentator.Helpers;
 global using WebApiDocumentator.Metadata;
 global using WebApiDocumentator.Models;
 global using WebApiDocumentator.Options;
+global using WebApiDocumentator.ValueObjects;

@@ -37,6 +37,30 @@ internal class IndexModel : PageModel
     {
         Groups = _metadataProvider.GetGroupedEndpoints();
 
+        try
+        {
+            // Cargar Authentication desde la sesión
+            var authJson = HttpContext.Session.GetString("AuthenticationInput");
+            if(!string.IsNullOrEmpty(authJson))
+            {
+                try
+                {
+                    TestInput.Authentication = JsonSerializer.Deserialize<AuthenticationInput>(authJson) ?? new AuthenticationInput();
+                    _logger.LogDebug("Loaded Authentication from session: Type={AuthType}", TestInput.Authentication.Type);
+                }
+                catch(JsonException ex)
+                {
+                    _logger.LogWarning("Failed to deserialize Authentication from session: {Error}", ex.Message);
+                    TestInput.Authentication = new AuthenticationInput();
+                }
+            }
+        }
+        catch(Exception ex)
+        {
+            _logger.LogWarning("Failed use session: {Error}", ex.Message);
+            TestInput.Authentication = new AuthenticationInput();
+        }
+
         if(!string.IsNullOrWhiteSpace(id))
         {
             _logger.LogInformation("Received query Id: {Id}", id);
@@ -95,6 +119,7 @@ internal class IndexModel : PageModel
 
         ExampleBodyJson = SelectedEndpoint.ExampleJson;
 
+        // Validar parámetros requeridos
         foreach(var param in SelectedEndpoint.Parameters.Where(p => p.IsRequired))
         {
             if(!TestInput.Parameters.ContainsKey(param.Name) || string.IsNullOrEmpty(TestInput.Parameters[param.Name]))
@@ -102,6 +127,33 @@ internal class IndexModel : PageModel
                 ModelState.AddModelError($"TestInput.Parameters[{param.Name}]", $"Parameter {param.Name} is required.");
             }
         }
+
+        // Validar autenticación
+        if(TestInput.Authentication.Type == AuthenticationType.Bearer)
+        {
+            if(string.IsNullOrWhiteSpace(TestInput.Authentication.BearerToken))
+            {
+                ModelState.AddModelError("TestInput.BearerToken", "Bearer token is required.");
+            }
+        }
+        else if(TestInput.Authentication.Type == AuthenticationType.Basic)
+        {
+            if(string.IsNullOrWhiteSpace(TestInput.Authentication.BasicUsername))
+            {
+                ModelState.AddModelError("TestInput.BasicUsername", "Username is required for Basic authentication.");
+            }
+            if(string.IsNullOrWhiteSpace(TestInput.Authentication.BasicPassword))
+            {
+                ModelState.AddModelError("TestInput.BasicPassword", "Password is required for Basic authentication.");
+            }
+        }
+        else if(TestInput.Authentication.Type == AuthenticationType.ApiKey && string.IsNullOrEmpty(TestInput.Authentication.ApiKeyValue))
+        {
+            ModelState.AddModelError("TestInput.Authentication.ApiKeyValue", "API Key is required when API Key authentication is selected.");
+        }
+
+        var authJson = JsonSerializer.Serialize(TestInput.Authentication);
+        HttpContext.Session.SetString("AuthenticationInput", authJson);
 
         if(!ModelState.IsValid)
         {
@@ -112,6 +164,7 @@ internal class IndexModel : PageModel
 
         var requestUrl = TestInput.Route;
 
+        // Reemplazar parámetros de ruta
         foreach(var param in SelectedEndpoint.Parameters.Where(p => p.Source == "Path" && TestInput.Parameters.ContainsKey(p.Name)))
         {
             var paramValue = HttpUtility.UrlEncode(TestInput.Parameters[param.Name] ?? "");
@@ -119,6 +172,7 @@ internal class IndexModel : PageModel
             _logger.LogInformation("Replaced route parameter: {{{ParamName}}} -> {ParamValue}", param.Name, paramValue);
         }
 
+        // Añadir parámetros de consulta
         var queryParams = SelectedEndpoint.Parameters
             .Where(p => p.Source == "Query" && TestInput.Parameters.ContainsKey(p.Name))
             .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(TestInput.Parameters[p.Name] ?? "")}")
@@ -135,6 +189,36 @@ internal class IndexModel : PageModel
 
         var request = new HttpRequestMessage(new HttpMethod(TestInput.Method), requestUrl);
 
+        // Añadir encabezados de autenticación
+        if(TestInput.Authentication.Type == AuthenticationType.Bearer)
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", TestInput.Authentication.BearerToken);
+            _logger.LogInformation("Added Bearer authentication header");
+        }
+        else if(TestInput.Authentication.Type == AuthenticationType.Basic)
+        {
+            var credentials = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{TestInput.Authentication.BasicUsername}:{TestInput.Authentication.Type}"));
+            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
+            _logger.LogInformation("Added Basic authentication header");
+        }
+        else if(TestInput.Authentication.Type == AuthenticationType.ApiKey && string.IsNullOrEmpty(TestInput.Authentication.ApiKeyValue))
+        {
+            if(TestInput.Authentication.ApiKeyLocation == "Header")
+            {
+                var headerName = string.IsNullOrEmpty(TestInput.Authentication.ApiKeyName) ? "X-Api-Key" : TestInput.Authentication.ApiKeyName;
+                _httpClient.DefaultRequestHeaders.Add(headerName, TestInput.Authentication.ApiKeyValue);
+                _logger.LogInformation("Added API Key to header: {HeaderName}={HeaderValue}", headerName, TestInput.Authentication.ApiKeyValue);
+            }
+            else if(TestInput.Authentication.ApiKeyLocation == "Query")
+            {
+                var keyName = string.IsNullOrEmpty(TestInput.Authentication.ApiKeyName) ? "apiKey" : TestInput.Authentication.ApiKeyName;
+                queryParams.Add($"{HttpUtility.UrlEncode(keyName)}={HttpUtility.UrlEncode(TestInput.Authentication.ApiKeyValue)}");
+                _logger.LogInformation("Added API Key to query: {KeyName}={KeyValue}", keyName, TestInput.Authentication.ApiKeyValue);
+            }
+        }
+
+
+        // Añadir cuerpo de la solicitud
         if(SelectedEndpoint.Parameters.Any(p => p.IsFromBody))
         {
             var bodyParam = SelectedEndpoint.Parameters.FirstOrDefault(p => p.IsFromBody);
@@ -251,5 +335,12 @@ internal class IndexModel : PageModel
             endpoints.AddRange(GetAllEndpoints(child));
         }
         return endpoints;
+    }
+
+    public IActionResult OnPostClearAuth()
+    {
+        HttpContext.Session.Remove("AuthenticationInput");
+        _logger.LogDebug("Cleared Authentication from session");
+        return new JsonResult(new { success = true });
     }
 }

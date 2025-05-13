@@ -230,7 +230,6 @@
             font-weight: 600;
         }
 
-        /* Estilos para anidamiento */
         ul ul {
             margin-left: 20px;
             padding-left: 10px;
@@ -240,6 +239,19 @@
             font-size: 0.95em;
             color: #343a40;
         }
+
+
+        .auth-section {
+            margin-bottom: 20px;
+        }
+
+        .auth-fields {
+            display: none;
+        }
+
+            .auth-fields.active {
+                display: block;
+            }
     </style>
 </head>
 <body>
@@ -247,7 +259,7 @@
         <a class="endpoint-link" href="/docs">
             <h3>@Model.Name</h3>
         </a>
-        <h4>Endpoints</h4>        
+        <h4>Endpoints</h4>
         <partial name="EndpointNode" model="Model.Groups" view-data="ViewData" />
     </div>
 
@@ -341,6 +353,63 @@
                 <input type="hidden" name="TestInput.Route" value="@route" />
                 @Html.AntiForgeryToken()
 
+                <div class="auth-section">
+                    <input type="hidden" id="authTypeValue" name="authTypeValue" value="@Model.TestInput.Authentication.Type" />
+                    <input type="hidden" id="apiKeyLocationValue" name="apiKeyLocationValue" value="@Model.TestInput.Authentication.ApiKeyLocation" />
+                    <label for="authType">Authentication Type</label>
+                    <select id="authType" name="TestInput.Authentication.Type" onchange="toggleAuthFields()">
+                        <option value="None">None</option>
+                        <option value="Bearer">Bearer Token</option>
+                        <option value="ApiKey">API Key</option>
+                        <option value="Basic">Basic Auth</option>
+                    </select>
+
+                    <div id="bearerFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Bearer ? "active" : "")">
+                        <label for="bearerToken">Bearer Token (Required)</label>
+                        <input type="text" id="bearerToken" name="TestInput.Authentication.BearerToken" value="@Model.TestInput.Authentication.BearerToken" placeholder="Enter Bearer Token" />
+                        @if(ModelState.ContainsKey("TestInput.Authentication.BearerToken"))
+                        {
+                            <div class="field-error">
+                                @ModelState["TestInput.Authentication.BearerToken"].Errors.FirstOrDefault()?.ErrorMessage
+                            </div>
+                        }
+                    </div>
+
+                    <div id="apiKeyFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.ApiKey ? "active" : "")">
+                        <label for="apiKeyValue">API Key (Required)</label>
+                        <input type="text" id="apiKeyValue" name="TestInput.Authentication.ApiKeyValue" value="@Model.TestInput.Authentication.ApiKeyValue" placeholder="Enter API Key" />
+                        @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyValue"))
+                        {
+                            <div class="field-error">
+                                @ModelState["TestInput.Authentication.ApiKeyValue"].Errors.FirstOrDefault()?.ErrorMessage
+                            </div>
+                        }
+
+                        <label for="apiKeyName">Header/Parameter Name (Optional, defaults to 'X-Api-Key')</label>
+                        <input type="text" id="apiKeyName" name="TestInput.Authentication.ApiKeyName" value="@Model.TestInput.Authentication.ApiKeyName" placeholder="e.g., X-Api-Key" />
+                        @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyName"))
+                        {
+                            <div class="field-error">
+                                @ModelState["TestInput.Authentication.ApiKeyName"].Errors.FirstOrDefault()?.ErrorMessage
+                            </div>
+                        }
+
+                        <label for="apiKeyLocation">Location</label>
+                        <select id="apiKeyLocation" name="TestInput.Authentication.ApiKeyLocation">
+                            <option value="Header">Header</option>
+                            <option value="Query">Query</option>
+                        </select>
+                    </div>
+
+                    <div id="basicFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Basic ? "active" : "")">
+                        <label for="basicUsername">Username (Required)</label>
+                        <input type="text" id="basicUsername" name="TestInput.Authentication.BasicUsername" value="@Model.TestInput.Authentication.BasicUsername" placeholder="Enter Username" />
+                        <label for="basicPassword">Password (Required)</label>
+                        <input type="password" id="basicPassword" name="TestInput.Authentication.BasicPassword" value="@Model.TestInput.Authentication.BasicPassword" placeholder="Enter Password" />
+                    </div>
+                    <button type="button" onclick="clearAuth()">Clear Authentication</button>
+                </div>
+
                 @foreach(var param in selected.Parameters)
                 {
                     if(param.IsValueParameter)
@@ -405,45 +474,102 @@
 
             <h4>cURL</h4>
             <pre>
-    curl -X @selected.HttpMethod https://api.yourwebsite.com@selected.Route@if (Model.ExampleBodyJson != null)
-    {
+                curl -X @selected.HttpMethod https://api.yourwebsite.com@selected.Route@if (Model.ExampleBodyJson != null)
+                {
             <text> \
-          -H "Content-Type: application/json" \
-          -d '@Html.Raw(Model.ExampleBodyJson)'</text>
-    }
-                </pre>
+                      -H "Content-Type: application/json" \
+                      -d '@Html.Raw(Model.ExampleBodyJson)'</text>
+                }
+                            </pre>
 
             <h4>C# (HttpClient)</h4>
             <pre>
-    using var client = new HttpClient();
-    client.BaseAddress = new Uri("https://api.yourwebsite.com");
+                using var client = new HttpClient();
+                client.BaseAddress = new Uri("https://api.yourwebsite.com");
                 @if(Model.ExampleBodyJson != null)
                 {
                     <text>var content = new StringContent(@Html.Raw(Model.ExampleBodyJson), System.Text.Encoding.UTF8, "application/json");
-            var response = await client.@(selected.HttpMethod)Async("@selected.Route", content);</text>
+                                    var response = await client.@(selected.HttpMethod)Async("@selected.Route", content);</text>
                 }
                 else
                 {
                     <text>var response = await client.@(selected.HttpMethod)Async("@selected.Route");</text>
                 }
-    response.EnsureSuccessStatusCode();
-    var content = await response.Content.ReadAsStringAsync();
-                </pre>
+                response.EnsureSuccessStatusCode();
+                var content = await response.Content.ReadAsStringAsync();
+                            </pre>
 
             <h4>fetch (JavaScript)</h4>
             <pre>
-    fetch("https://api.yourwebsite.com@selected.Route", {
-        method: "@selected.HttpMethod"@if(Model.ExampleBodyJson != null)
+                fetch("https://api.yourwebsite.com@selected.Route", {
+                    method: "@selected.HttpMethod"@if(Model.ExampleBodyJson != null)
                 {
                     <text>,
-                headers: { "Content-Type": "application/json" },
-                body: @Html.Raw(Model.ExampleBodyJson)</text>
+                                        headers: { "Content-Type": "application/json" },
+                                        body: @Html.Raw(Model.ExampleBodyJson)</text>
                 }
-    })
-    .then(res => res.json())
-    .then(data => console.log(data));
-                </pre>
+                })
+                .then(res => res.json())
+                .then(data => console.log(data));
+                            </pre>
         </div>
     }
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Establecer el valor de authType desde el campo oculto
+            var authTypeValue = document.getElementById("authTypeValue").value;
+            if (authTypeValue) {
+                document.getElementById("authType").value = authTypeValue;
+            }
+
+            // Establecer el valor de apiKeyLocation desde el campo oculto
+            var apiKeyLocationValue = document.getElementById("apiKeyLocationValue").value;
+            if (apiKeyLocationValue) {
+                document.getElementById("apiKeyLocation").value = apiKeyLocationValue;
+            }
+        });
+
+        function toggleAuthFields() {
+            var authType = document.getElementById("authType").value;
+            var bearerFields = document.getElementById("bearerFields");
+            var apiKeyFields = document.getElementById("apiKeyFields");
+            var basicFields = document.getElementById("basicFields");
+            bearerFields.classList.remove("active");
+            apiKeyFields.classList.remove("active");
+            basicFields.classList.remove("active");
+            if (authType === "Bearer") {
+                bearerFields.classList.add("active");
+            } else if (authType === "ApiKey") {
+                apiKeyFields.classList.add("active");
+            } else if (authType === "Basic") {
+                basicFields.classList.add("active");
+            }
+        }
+
+        function clearAuth() {
+            // Restablecer el formulario de autenticación
+            document.getElementById("authType").value = "None";
+            document.getElementById("bearerToken").value = "";
+            document.getElementById("apiKeyValue").value = "";
+            document.getElementById("apiKeyName").value = "";
+            document.getElementById("apiKeyLocation").value = "Header";
+            document.getElementById("basicUsername").value = "";
+            document.getElementById("basicPassword").value = "";
+            toggleAuthFields();
+
+            // Enviar solicitud para limpiar la sesión
+            fetch('/Docs?handler=ClearAuth', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                }
+            }).then(response => {
+                if (response.ok) {
+                    console.log("Authentication cleared");
+                }
+            });
+        }
+    </script>
 </body>
 </html>
