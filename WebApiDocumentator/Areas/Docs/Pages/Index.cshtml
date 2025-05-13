@@ -474,43 +474,43 @@
 
             <h4>cURL</h4>
             <pre>
-                curl -X @selected.HttpMethod https://api.yourwebsite.com@selected.Route@if (Model.ExampleBodyJson != null)
-                {
-            <text> \
-                      -H "Content-Type: application/json" \
-                      -d '@Html.Raw(Model.ExampleBodyJson)'</text>
-                }
-                            </pre>
+curl -X @selected.HttpMethod https://api.yourwebsite.com@selected.Route
+@if (Model.ExampleBodyJson != null)
+{
+                    <text>    -H "Content-Type: application/json"
+    -d '@Html.Raw(Model.ExampleBodyJson)'</text>
+}
+</pre>
 
             <h4>C# (HttpClient)</h4>
             <pre>
-                using var client = new HttpClient();
-                client.BaseAddress = new Uri("https://api.yourwebsite.com");
+using var client = new HttpClient();
+client.BaseAddress = new Uri("https://api.yourwebsite.com");
                 @if(Model.ExampleBodyJson != null)
-                {
+                {                       
                     <text>var content = new StringContent(@Html.Raw(Model.ExampleBodyJson), System.Text.Encoding.UTF8, "application/json");
-                                    var response = await client.@(selected.HttpMethod)Async("@selected.Route", content);</text>
+var response = await client.@(selected.HttpMethod)Async("@selected.Route", content);</text>
                 }
                 else
                 {
                     <text>var response = await client.@(selected.HttpMethod)Async("@selected.Route");</text>
                 }
-                response.EnsureSuccessStatusCode();
-                var content = await response.Content.ReadAsStringAsync();
+response.EnsureSuccessStatusCode();
+var content = await response.Content.ReadAsStringAsync();
                             </pre>
 
             <h4>fetch (JavaScript)</h4>
             <pre>
-                fetch("https://api.yourwebsite.com@selected.Route", {
-                    method: "@selected.HttpMethod"@if(Model.ExampleBodyJson != null)
-                {
-                    <text>,
-                                        headers: { "Content-Type": "application/json" },
-                                        body: @Html.Raw(Model.ExampleBodyJson)</text>
-                }
-                })
-                .then(res => res.json())
-                .then(data => console.log(data));
+fetch("https://api.yourwebsite.com@selected.Route", {
+     method: "@selected.HttpMethod",
+@if(Model.ExampleBodyJson != null)
+{
+<text>     headers: { "Content-Type": "application/json" },
+     body: @Html.Raw(Model.ExampleBodyJson)</text>
+}
+})
+.then(res => res.json())
+.then(data => console.log(data));
                             </pre>
         </div>
     }
