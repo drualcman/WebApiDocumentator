@@ -10,7 +10,6 @@ internal class IndexModel : PageModel
 
     public List<EndpointGroupNode> Groups { get; private set; } = new();
     public ApiEndpointInfo? SelectedEndpoint { get; private set; }
-    public string? ExampleBodyJson { get; private set; }
 
     public string Name => _options.ApiName;
     public string Version => _options.Version;
@@ -18,6 +17,9 @@ internal class IndexModel : PageModel
     public string? TestResponse { get; private set; }
     [BindProperty]
     public EndpointTestInput TestInput { get; set; } = new();
+    public string? ExampleRequestUrl { get; private set; }
+    public string? RequestBodyJson { get; private set; }
+    public string? ExampleBodyJson { get; private set; }
 
     public IndexModel(
         CompositeMetadataProvider metadataProvider,
@@ -80,6 +82,9 @@ internal class IndexModel : PageModel
                 _logger.LogDebug("Found endpoint: Id={Id}, Method={Method}, Route={Route}",
                     SelectedEndpoint.Id, SelectedEndpoint.HttpMethod, SelectedEndpoint.Route);
                 ExampleBodyJson = SelectedEndpoint.ExampleJson;
+                ExampleRequestUrl = GenerateExampleRequestUrl(SelectedEndpoint);
+                // Generar el JSON del cuerpo de la solicitud
+                RequestBodyJson = GenerateRequestBodyJson(SelectedEndpoint);
             }
         }
         else
@@ -118,6 +123,9 @@ internal class IndexModel : PageModel
         }
 
         ExampleBodyJson = SelectedEndpoint.ExampleJson;
+        ExampleRequestUrl = GenerateExampleRequestUrl(SelectedEndpoint);
+        // Generar el JSON del cuerpo de la solicitud
+        RequestBodyJson = GenerateRequestBodyJson(SelectedEndpoint);
 
         // Validar parámetros requeridos
         foreach(var param in SelectedEndpoint.Parameters.Where(p => p.IsRequired))
@@ -316,6 +324,69 @@ internal class IndexModel : PageModel
         return Page();
     }
 
+    // Nuevo método para generar la URL de ejemplo con parámetros de ruta y consulta
+    private string GenerateExampleRequestUrl(ApiEndpointInfo endpoint)
+    {
+        var generator = new JsonSchemaGenerator(new Dictionary<string, string>());
+        var url = endpoint.Route;
+
+        // Reemplazar parámetros de ruta
+        foreach(var param in endpoint.Parameters.Where(p => p.Source == "Path"))
+        {
+            var exampleValue = GenerateParameterExample(param, generator);
+            url = url.Replace($"{{{param.Name}}}", HttpUtility.UrlEncode(exampleValue), StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Añadir parámetros de consulta
+        var queryParams = endpoint.Parameters
+            .Where(p => p.Source == "Query")
+            .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(GenerateParameterExample(p, generator))}")
+            .ToList();
+
+        if(queryParams.Any())
+        {
+            url += "?" + string.Join("&", queryParams);
+        }
+
+        return url;
+    }
+
+    // Método auxiliar para generar valores de ejemplo para parámetros
+    private string GenerateParameterExample(ApiParameterInfo param, JsonSchemaGenerator generator)
+    {
+        if(param.Schema != null)
+        {
+            var example = generator.GetExampleAsJsonString(param.Schema);
+            if(!string.IsNullOrEmpty(example))
+            {
+                return example.Trim('"');
+            }
+        }
+
+        // Valores predeterminados si no hay esquema o ejemplo
+        return param.Type switch
+        {
+            "string" => "example",
+            "integer" => "123",
+            "number" => "123.45",
+            "boolean" => "true",
+            _ => "example"
+        };
+    }
+
+
+    // Método auxiliar para generar el JSON del cuerpo de la solicitud
+    private string? GenerateRequestBodyJson(ApiEndpointInfo endpoint)
+    {
+        var bodyParam = endpoint.Parameters.FirstOrDefault(p => p.IsFromBody);
+        if(bodyParam != null && bodyParam.Schema != null)
+        {
+            var generator = new JsonSchemaGenerator(new Dictionary<string, string>());
+            return generator.GetExampleAsJsonString(bodyParam.Schema);
+        }
+        return null;
+    }
+
     public string GetApiVersion()
     {
         return $"v{_provider.ApiDescriptionGroups.Version + 1}";
@@ -343,4 +414,8 @@ internal class IndexModel : PageModel
         _logger.LogDebug("Cleared Authentication from session");
         return new JsonResult(new { success = true });
     }
+
+    public string? HttpMethodFormatted => SelectedEndpoint != null
+    ? char.ToUpper(SelectedEndpoint.HttpMethod[0]) + SelectedEndpoint.HttpMethod.Substring(1).ToLower()
+    : "";
 }
