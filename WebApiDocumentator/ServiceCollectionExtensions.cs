@@ -7,8 +7,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddMyApiDocs(this IServiceCollection services,
         Action<DocumentatorOptions> configure)
     {
-        DocumentatorOptions myOptions = new();
-        configure(myOptions);
+        DocumentatorOptions customOptions = new();
+        configure(customOptions);
         services.Configure(configure);
         services.AddSingleton<IParameterSourceResolver, ParameterSourceResolver>();
         services.AddSingleton<IMetadataProvider, MinimalApiMetadataProvider>();
@@ -19,7 +19,7 @@ public static class ServiceCollectionExtensions
             options.Conventions.AddAreaPageRoute(
                 areaName: "Docs",
                 pageName: "/Index",
-                route: NormalizePath(myOptions.DocsBaseUrl)
+                route: NormalizePath(customOptions.DocsBaseUrl)
             );
         });
         services.AddHttpClient("WebApiDocumentator");
