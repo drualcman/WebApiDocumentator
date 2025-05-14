@@ -468,6 +468,7 @@ internal class IndexModel : PageModel
 
 
         #sidebar {
+            flex: 1;
             width: var(--sidebar-width);
             background-color: var(--sidebar-bg);
             color: var(--sidebar-text);
@@ -602,12 +603,12 @@ internal class IndexModel : PageModel
             align-items: center;
             font-size: 0.9rem;
             transition: var(--transition);
-            white-space: nowrap; 
             overflow: hidden; 
-            word-break: break-word;
             padding: 0.25rem 0.5rem;
             border-radius: 4px; 
             margin: 0.1rem 0; 
+            word-break: break-word;
+            white-space: normal; 
         }
 
             a.endpoint-link:hover {
@@ -620,9 +621,7 @@ internal class IndexModel : PageModel
                 color: black;
                 font-weight: 600;
                 padding: 0.5rem;
-                white-space: normal; 
                 overflow: visible;
-                word-break: break-word;
             }
 
         .endpoint-method {
@@ -675,22 +674,28 @@ internal class IndexModel : PageModel
         }
 
         #content {
-            flex: 1;
+            flex: 2;
             padding: 2rem;
         }
 
  
-        #examples {
-            width: 350px;
+        #models-example,        
+        {
             padding: 2rem;
             background-color: var(--example-bg);
             border-left: 1px solid var(--border-color);
-            overflow-y: auto;
+        } 
+
+        #examples {    
+            flex: 1;
+            padding: 2rem;
+            background-color: var(--example-bg);
+            border-left: 1px solid var(--border-color);
             position: sticky;
+            overflow: auto;
             top: 0;
             height: 100vh;
         }
-
 
         .card {
             background-color: white;
@@ -895,31 +900,33 @@ internal class IndexModel : PageModel
             font-size: 0.8rem;
             margin-top: 0.25rem;
         }
-
-        /* Examples section */
+                
+        .models-tabs,        
         .example-tabs {
             display: flex;
             border-bottom: 1px solid var(--border-color);
             margin-bottom: 1rem;
         }
 
+        
+        .models-tab,
         .example-tab {
             padding: 0.5rem 1rem;
             cursor: pointer;
             border-bottom: 2px solid transparent;
             transition: var(--transition);
         }
-
+            .models-tab.active,
             .example-tab.active {
                 border-bottom-color: var(--primary-color);
                 color: var(--primary-color);
                 font-weight: 500;
             }
-
+        .models-tab-content,
         .example-tab-content {
             display: none;
         }
-
+            .models-tab-content.active ,
             .example-tab-content.active {
                 display: block;
             }
@@ -938,7 +945,6 @@ internal class IndexModel : PageModel
                 top: 0;
                 height: 100vh;
                 z-index: 1000;
-                width: 260px; 
             }
 
                 #sidebar.active {

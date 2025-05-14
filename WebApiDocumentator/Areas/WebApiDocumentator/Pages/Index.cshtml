@@ -125,17 +125,34 @@
                 }
             </div>
 
-            <div class="card">
-                <h3>Response</h3>
-                <p><strong>Type:</strong> @selected.ReturnType</p>
-                @if(!string.IsNullOrWhiteSpace(selected.ExampleJson))
-                {
-                    <pre class="json-viewer">@selected.ExampleJson</pre>
-                }
-                else
-                {
-                    <p>No return schema available.</p>
-                }
+            <div id="models-example">
+                <div class="models-tabs">
+                    <div class="models-tab active" data-tab="request">Request</div>
+                    <div class="models-tab" data-tab="response">Response</div>
+                </div>
+                <div class="card models-tab-content active" id="request-tab">
+                    <h3>Request</h3>
+                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                    {
+                        <pre class="json-viewer">@Model.RequestBodyJson</pre>
+                    }
+                    else
+                    {
+                        <p>No request schema available.</p>
+                    }
+                </div>
+                <div class="card models-tab-content" id="response-tab">
+                    <h3>Response</h3>
+                    <p><strong>Type:</strong> @selected.ReturnType</p>
+                    @if(!string.IsNullOrWhiteSpace(selected.ExampleJson))
+                    {
+                        <pre class="json-viewer">@selected.ExampleJson</pre>
+                    }
+                    else
+                    {
+                        <p>No return schema available.</p>
+                    }
+                </div>
             </div>
 
             <div class="card test-form">
@@ -281,40 +298,40 @@
 
             <div class="example-tab-content active" id="curl-tab">
                 <pre>curl -X @selected.HttpMethod https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")
-@if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-{
-<text>     -H "Content-Type: application/json"
-     -d '@Html.Raw(Model.RequestBodyJson)'</text>
-}</pre>
+                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                    {
+                        <text>     -H "Content-Type: application/json"
+             -d '@Html.Raw(Model.RequestBodyJson)'</text>
+                    }</pre>
             </div>
 
             <div class="example-tab-content" id="csharp-tab">
                 <pre>using var client = new HttpClient();
-client.BaseAddress = new Uri("https://api.yourwebsite.com");
-@if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-{
-<text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
-using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
-}
-else
-{
-<text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
-}
-response.EnsureSuccessStatusCode();
-var content = await response.Content.ReadAsStringAsync();</pre>
+    client.BaseAddress = new Uri("https://api.yourwebsite.com");
+                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                    {
+                        <text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
+        using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
+                    }
+                    else
+                    {
+                        <text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
+                    }
+    response.EnsureSuccessStatusCode();
+    var content = await response.Content.ReadAsStringAsync();</pre>
             </div>
 
             <div class="example-tab-content" id="javascript-tab">
                 <pre>fetch("https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")", {
-     method: "@selected.HttpMethod",
-@if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-{
-    <text>     headers: { "Content-Type": "application/json" },
-     body: @Html.Raw(Model.RequestBodyJson)</text>
-}
-})
-.then(res => res.json())
-.then(data => console.log(data));</pre>
+         method: "@selected.HttpMethod",
+                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                    {
+                        <text>     headers: { "Content-Type": "application/json" },
+             body: @Html.Raw(Model.RequestBodyJson)</text>
+                    }
+    })
+    .then(res => res.json())
+    .then(data => console.log(data));</pre>
             </div>
         </div>
     }
@@ -390,6 +407,23 @@ var content = await response.Content.ReadAsStringAsync();</pre>
                     // Remove active class from all tabs and contents
                     document.querySelectorAll('.example-tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.example-tab-content').forEach(c => c.classList.remove('active'));
+
+                    // Add active class to clicked tab and corresponding content
+                    tab.classList.add('active');
+                    const tabId = tab.getAttribute('data-tab');
+                    document.getElementById(`${tabId}-tab`).classList.add('active');
+                });
+            });
+        } 
+        
+        // UI Setup functions
+        function setupModelsTabs() {
+            const tabs = document.querySelectorAll('.models-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Remove active class from all tabs and contents
+                    document.querySelectorAll('.models-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.models-tab-content').forEach(c => c.classList.remove('active'));
 
                     // Add active class to clicked tab and corresponding content
                     tab.classList.add('active');
@@ -706,6 +740,7 @@ var content = await response.Content.ReadAsStringAsync();</pre>
         document.addEventListener("DOMContentLoaded", function () {
             // Initialize UI components
             initAuthFields();
+            setupModelsTabs();
             setupExampleTabs();
             setupMobileSidebar();
             setupEndpointSearch();
