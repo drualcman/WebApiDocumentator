@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace WebApiDocumentator.Options;
+﻿namespace WebApiDocumentator.Options;
 
 
 /// <summary>
@@ -23,4 +21,5 @@ public class DocumentatorOptions
     /// </summary>   
     [Required]
     public string Description { get; set; }
+    public string DocsBaseUrl { get; set; } = "/Docs";
 }

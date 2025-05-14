@@ -7,12 +7,21 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddMyApiDocs(this IServiceCollection services,
         Action<DocumentatorOptions> configure)
     {
+        DocumentatorOptions myOptions = new();
+        configure(myOptions);
         services.Configure(configure);
         services.AddSingleton<IParameterSourceResolver, ParameterSourceResolver>();
         services.AddSingleton<IMetadataProvider, MinimalApiMetadataProvider>();
         services.AddSingleton<IMetadataProvider, ControllerMetadataProvider>();
         services.AddSingleton<CompositeMetadataProvider>();
-        services.AddRazorPages();
+        services.AddRazorPages(options =>
+        {
+            options.Conventions.AddAreaPageRoute(
+                areaName: "Docs",
+                pageName: "/Index",
+                route: NormalizePath(myOptions.DocsBaseUrl)
+            );
+        });
         services.AddHttpClient("WebApiDocumentator");
         services.AddLogging();
         services.AddSession(options =>
@@ -33,6 +42,7 @@ public static class ServiceCollectionExtensions
             endpoints.MapRazorPages();
         });
 
+
         return app;
     }
 
@@ -41,5 +51,15 @@ public static class ServiceCollectionExtensions
         app.UseSession();
         app.MapRazorPages();
         return app;
+    }
+
+    private static string NormalizePath(string path)
+    {
+        if(string.IsNullOrEmpty(path))
+            return "/";
+        path = path.Trim();
+        if(!path.StartsWith("/"))
+            path = "/" + path;
+        return path.TrimEnd('/');
     }
 }
