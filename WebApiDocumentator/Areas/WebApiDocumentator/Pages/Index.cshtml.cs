@@ -1,4 +1,4 @@
-﻿namespace WebApiDocumentator.Areas.Docs.Pages;
+﻿namespace WebApiDocumentator.Areas.WebApiDocumentator.Pages;
 
 internal class IndexModel : PageModel
 {

@@ -21,5 +21,5 @@ public class DocumentatorOptions
     /// </summary>   
     [Required]
     public string Description { get; set; }
-    public string DocsBaseUrl { get; set; } = "/Docs";
+    public string DocsBaseUrl { get; set; } = "/api/docs";
 }

@@ -1,9 +1,9 @@
 @page
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-@using WebApiDocumentator.Models
-@using WebApiDocumentator.Areas.Docs.Pages
+@using WebApiDocumentator.Areas.WebApiDocumentator.Pages
 @using WebApiDocumentator.Metadata
-@model WebApiDocumentator.Areas.Docs.Pages.IndexModel
+@using WebApiDocumentator.Models
+@model WebApiDocumentator.Areas.WebApiDocumentator.Pages.IndexModel
 @{
     var selected = Model.SelectedEndpoint;
     var method = selected?.HttpMethod ?? "GET";
@@ -285,37 +285,37 @@
                     @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
                     {
                         <text>    -H "Content-Type: application/json"
-                                    -d '@Html.Raw(Model.RequestBodyJson)'</text>
+                                                    -d '@Html.Raw(Model.RequestBodyJson)'</text>
                     }</pre>
             </div>
 
             <div class="example-tab-content" id="csharp-tab">
                 <pre>using var client = new HttpClient();
-                client.BaseAddress = new Uri("https://api.yourwebsite.com");
+                        client.BaseAddress = new Uri("https://api.yourwebsite.com");
                     @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
                     {
                         <text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
-                                using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
+                                                using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
                     }
                     else
                     {
                         <text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
                     }
-                response.EnsureSuccessStatusCode();
-                var content = await response.Content.ReadAsStringAsync();</pre>
+                        response.EnsureSuccessStatusCode();
+                        var content = await response.Content.ReadAsStringAsync();</pre>
             </div>
 
             <div class="example-tab-content" id="javascript-tab">
                 <pre>fetch("https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")", {
-                    method: "@selected.HttpMethod",
+                            method: "@selected.HttpMethod",
                     @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
                     {
                         <text>    headers: { "Content-Type": "application/json" },
-                                    body: @Html.Raw(Model.RequestBodyJson)</text>
+                                                    body: @Html.Raw(Model.RequestBodyJson)</text>
                     }
-                })
-                .then(res => res.json())
-                .then(data => console.log(data));</pre>
+                        })
+                        .then(res => res.json())
+                        .then(data => console.log(data));</pre>
             </div>
         </div>
     }
@@ -441,7 +441,7 @@
                 });
             });
 
-            // Configurar el botón "Expand All/Collapse All"
+            // Configurar el bot?n "Expand All/Collapse All"
             if (toggleAllBtn) {
                 toggleAllBtn.addEventListener('click', () => {
                     allCollapsed = !allCollapsed;
@@ -462,10 +462,10 @@
         }
 
         function calculateAllGroupHeights() {
-            // Obtenemos todos los grupos desde los más profundos hasta los más superficiales
+            // Obtenemos todos los grupos desde los m?s profundos hasta los m?s superficiales
             const allGroups = Array.from(document.querySelectorAll('.group-items'));
 
-            // Ordenamos los grupos por profundidad (los más profundos primero)
+            // Ordenamos los grupos por profundidad (los m?s profundos primero)
             allGroups.sort((a, b) => {
                 const depthA = getDepth(a);
                 const depthB = getDepth(b);
@@ -498,14 +498,14 @@
             Array.from(groupElement.children).forEach(child => {
                 if (child.style.display === 'none') return;
 
-                // Sumamos la altura del elemento más sus márgenes
+                // Sumamos la altura del elemento m?s sus m?rgenes
                 const style = window.getComputedStyle(child);
                 const margin = parseInt(style.marginTop) + parseInt(style.marginBottom);
                 height += child.offsetHeight + margin;
 
                 // Si es un grupo anidado
                 if (child.classList.contains('group-items')) {
-                    // Solo sumamos su altura si está expandido
+                    // Solo sumamos su altura si est? expandido
                     if (child.style.maxHeight && child.style.maxHeight !== '0px') {
                         height += parseInt(child.dataset.calculatedHeight || calculateGroupHeightRecursive(child));
                     }
@@ -516,7 +516,7 @@
                         if (grandChild.classList.contains('endpoint-group')) {
                             const items = grandChild.querySelector('.group-items');
                             if (items) {
-                                // Solo sumamos la altura si está expandido
+                                // Solo sumamos la altura si est? expandido
                                 if (items.style.maxHeight && items.style.maxHeight !== '0px') {
                                     height += parseInt(items.dataset.calculatedHeight || calculateGroupHeightRecursive(items));
                                 }
@@ -530,14 +530,14 @@
         }
 
         function expandGroup(groupItems, toggle) {
-            // Forzar recálculo de la altura
+            // Forzar rec?lculo de la altura
             const height = calculateGroupHeightRecursive(groupItems);
             groupItems.dataset.calculatedHeight = height;
             groupItems.style.maxHeight = height + 'px';
 
             if (toggle) toggle.classList.remove('collapsed');
 
-            // También expandimos los grupos padres
+            // Tambi?n expandimos los grupos padres
             let parentGroup = groupItems.parentElement.closest('.group-items');
             while (parentGroup) {
                 const parentHeight = calculateGroupHeightRecursive(parentGroup);
@@ -567,14 +567,14 @@
             }
         }
 
-        // Llamar a esta función al cargar la página
+        // Llamar a esta funci?n al cargar la p?gina
         function initMenu() {
             // Primero colapsar todo
             document.querySelectorAll('.group-items').forEach(group => {
                 group.style.maxHeight = '0';
             });
 
-            // Calcular alturas después de colapsar
+            // Calcular alturas despu?s de colapsar
             setTimeout(() => {
                 calculateAllGroupHeights();
 

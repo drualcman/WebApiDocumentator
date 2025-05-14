@@ -1,8 +1,8 @@
 @model IEnumerable<WebApiDocumentator.Models.EndpointGroupNode>
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-@using WebApiDocumentator.Models
-@using WebApiDocumentator.Areas.Docs.Pages
+@using WebApiDocumentator.Areas.WebApiDocumentator.Pages
 @using WebApiDocumentator.Metadata
+@using WebApiDocumentator.Models
 
 <ul class="endpoint-list">
     @foreach(var node in Model)

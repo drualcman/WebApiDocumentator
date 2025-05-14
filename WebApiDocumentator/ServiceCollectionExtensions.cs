@@ -14,13 +14,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMetadataProvider, MinimalApiMetadataProvider>();
         services.AddSingleton<IMetadataProvider, ControllerMetadataProvider>();
         services.AddSingleton<CompositeMetadataProvider>();
+
         services.AddRazorPages(options =>
         {
-            options.Conventions.AddAreaPageRoute(
-                areaName: "Docs",
-                pageName: "/Index",
-                route: NormalizePath(customOptions.DocsBaseUrl)
-            );
+            if(!string.IsNullOrWhiteSpace(customOptions.DocsBaseUrl))
+            {
+                options.Conventions.AddAreaPageRoute(
+                    areaName: "WebApiDocumentator",
+                    pageName: "/Index",
+                    route: NormalizePath(customOptions.DocsBaseUrl)
+                );
+            }
         });
         services.AddHttpClient("WebApiDocumentator");
         services.AddLogging();
