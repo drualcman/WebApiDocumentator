@@ -503,19 +503,23 @@
                 const margin = parseInt(style.marginTop) + parseInt(style.marginBottom);
                 height += child.offsetHeight + margin;
 
-                // Si es un grupo anidado, sumamos su altura completa si está expandido
+                // Si es un grupo anidado
                 if (child.classList.contains('group-items')) {
-                    if (child.style.maxHeight !== '0px') {
+                    // Solo sumamos su altura si está expandido
+                    if (child.style.maxHeight && child.style.maxHeight !== '0px') {
                         height += parseInt(child.dataset.calculatedHeight || calculateGroupHeightRecursive(child));
                     }
                 }
-                // Si es una lista de endpoints, procesamos sus hijos
+                // Si es una lista de endpoints (grupo padre)
                 else if (child.classList.contains('endpoint-list')) {
                     Array.from(child.children).forEach(grandChild => {
                         if (grandChild.classList.contains('endpoint-group')) {
                             const items = grandChild.querySelector('.group-items');
-                            if (items && items.style.maxHeight !== '0px') {
-                                height += parseInt(items.dataset.calculatedHeight || calculateGroupHeightRecursive(items));
+                            if (items) {
+                                // Solo sumamos la altura si está expandido
+                                if (items.style.maxHeight && items.style.maxHeight !== '0px') {
+                                    height += parseInt(items.dataset.calculatedHeight || calculateGroupHeightRecursive(items));
+                                }
                             }
                         }
                     });
@@ -526,15 +530,18 @@
         }
 
         function expandGroup(groupItems, toggle) {
-            // Calculamos la altura en tiempo real para asegurarnos que es correcta
+            // Forzar recálculo de la altura
             const height = calculateGroupHeightRecursive(groupItems);
+            groupItems.dataset.calculatedHeight = height;
             groupItems.style.maxHeight = height + 'px';
+
             if (toggle) toggle.classList.remove('collapsed');
 
             // También expandimos los grupos padres
             let parentGroup = groupItems.parentElement.closest('.group-items');
             while (parentGroup) {
                 const parentHeight = calculateGroupHeightRecursive(parentGroup);
+                parentGroup.dataset.calculatedHeight = parentHeight;
                 parentGroup.style.maxHeight = parentHeight + 'px';
 
                 const parentHeader = parentGroup.previousElementSibling;
@@ -562,14 +569,12 @@
 
         // Llamar a esta función al cargar la página
         function initMenu() {
-            calculateAllGroupHeights();
-
-            // Expandir todos los grupos inicialmente para calcular correctamente las alturas
+            // Primero colapsar todo
             document.querySelectorAll('.group-items').forEach(group => {
                 group.style.maxHeight = '0';
             });
 
-            // Recalcular después de colapsar
+            // Calcular alturas después de colapsar
             setTimeout(() => {
                 calculateAllGroupHeights();
 
@@ -707,9 +712,9 @@
             setupEndpointSearch();
             setupCollapsibleGroups();
             collapseAllExceptSelected();
-            scrollToSelectedEndpoint();
             setupFormLoadingIndicator();
             initMenu();
+            scrollToSelectedEndpoint();
         });
     </script>
 </body>
