@@ -4,31 +4,30 @@
 @using WebApiDocumentator.Areas.Docs.Pages
 @using WebApiDocumentator.Metadata
 
-
-<ul>
+<ul class="endpoint-list">
     @foreach(var node in Model)
     {
-        <li>
-            <strong>@node.Name</strong>
-            @if(node.Endpoints.Any())
-            {
-                <ul>
-                    @foreach(var endpoint in node.Endpoints.OrderBy(e => e.Route).ThenBy(e => e.HttpMethod))
-                    {
-                        var isSelected = ViewData["SelectedEndpoint"] as ApiEndpointInfo != null && endpoint.Id == (ViewData["SelectedEndpoint"] as ApiEndpointInfo).Id;
-                        <li>
-                            <a class="endpoint-link @(isSelected ? "selected" : "")" href="?id=@endpoint.Id">
-                                <span class="http-method @endpoint.HttpMethod">@endpoint.HttpMethod</span>
-                                @endpoint.Route
-                            </a>
-                        </li>
-                    }
-                </ul>
-            }
-            @if(node.Children.Any())
-            {
-                <partial name="EndpointNode" model="node.Children" view-data="ViewData" />
-            }
+        <li class="endpoint-group">
+            <div class="group-header">
+                <span class="group-title">@node.Name</span>
+                <span class="group-toggle">\/</span>
+            </div>
+            <ul class="group-items">
+                @foreach(var endpoint in node.Endpoints.OrderBy(e => e.Route).ThenBy(e => e.HttpMethod))
+                {
+                    var isSelected = ViewData["SelectedEndpoint"] as ApiEndpointInfo != null && endpoint.Id == (ViewData["SelectedEndpoint"] as ApiEndpointInfo).Id;
+                    <li class="endpoint-item">
+                        <a class="endpoint-link @(isSelected ? "selected" : "")" href="?id=@endpoint.Id">
+                            <span class="endpoint-method @endpoint.HttpMethod">@endpoint.HttpMethod</span>
+                            <span class="endpoint-route">@endpoint.Route</span>
+                        </a>
+                    </li>
+                }
+                @if(node.Children.Any())
+                {
+                    <partial name="EndpointNode" model="node.Children" view-data="ViewData" />
+                }
+            </ul>
         </li>
     }
 </ul>

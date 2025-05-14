@@ -19,450 +19,252 @@
 <head>
     <meta charset="utf-8" />
     <title>@Model.Name (@Model.Version) | Documentation</title>
-    <style>
-        body {
-            display: flex;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            margin: 0;
-            height: 100vh;
-            overflow-x: hidden;
-            background: #f8f9fa;
-        }
-
-        #sidebar {
-            width: 300px;
-            background: #ffffff;
-            padding: 20px;
-            border-right: 1px solid #dee2e6;
-            overflow-y: auto;
-            height: 100vh;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        #content {
-            flex: 2;
-            padding: 30px;
-            overflow-y: auto;
-            min-height: 100%;
-        }
-
-        #examples {
-            flex: 1;
-            padding: 30px;
-            background: #f1f3f5;
-            border-left: 1px solid #dee2e6;
-            overflow-y: auto;
-            min-height: 100%;
-        }
-
-        .http-method {
-            font-weight: 600;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85em;
-            color: white;
-            display: inline-block;
-            background: #000;
-        }
-
-        .GET {
-            background: #28a745;
-        }
-
-        .POST {
-            background: #ff9800;
-        }
-
-        .DELETE {
-            background: #dc3545;
-        }
-
-        .PUT {
-            background: #007bff;
-        }
-
-        .PATCH {
-            background: #17a2b8;
-        }
-
-        .HEAD {
-            background: #7d27aa;
-        }
-
-        a.endpoint-link {
-            text-decoration: none;
-            font-size: 0.95em;
-            color: #495057;
-            display: block;
-            margin: 5px 0;
-            transition: color 0.2s;
-        }
-
-            a.endpoint-link:hover {
-                color: #007bff;
-            }
-
-        .selected {
-            font-weight: 600;
-            color: #007bff;
-        }
-
-        .schema-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-            background: #ffffff;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-            .schema-table th, .schema-table td {
-                padding: 12px;
-                text-align: left;
-                border-bottom: 1px solid #dee2e6;
-            }
-
-            .schema-table th {
-                background: #e9ecef;
-                font-weight: 600;
-                color: #343a40;
-            }
-
-            .schema-table tr:last-child td {
-                border-bottom: none;
-            }
-
-        .json-viewer {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 15px;
-            border-radius: 4px;
-            font-family: "Consolas", "Courier New", monospace;
-            font-size: 0.9em;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-y: auto;
-            max-height: 65vh;
-            margin: 10px 0;
-        }
-
-        .endpoint-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-            .endpoint-header h2 {
-                margin: 0;
-                font-size: 1.5em;
-                color: #343a40;
-            }
-
-        h3, h4 {
-            color: #343a40;
-        }
-
-        pre {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 15px;
-            border-radius: 4px;
-            font-family: "Consolas", "Courier New", monospace;
-            font-size: 0.9em;
-            overflow-x: auto;
-        }
-
-        button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
-
-            button:hover {
-                background: #0056b3;
-            }
-
-        input[type="text"], textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            font-family: "Consolas", "Courier New", monospace;
-        }
-
-        textarea {
-            height: 150px;
-            resize: vertical;
-        }
-
-        .error-message {
-            color: #dc3545;
-            background: #f8d7da;
-            padding: 10px;
-            border: 1px solid #f5c6cb;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            font-size: 0.9em;
-        }
-
-        .field-error {
-            color: #dc3545;
-            font-size: 0.8em;
-            margin-top: -8px;
-            margin-bottom: 10px;
-        }
-
-        .general-error {
-            color: #dc3545;
-            font-size: 0.9em;
-            margin-bottom: 5px;
-        }
-
-        .schema-table td.source-path {
-            color: #007bff;
-            font-weight: 600;
-        }
-
-        ul ul {
-            margin-left: 20px;
-            padding-left: 10px;
-        }
-
-        li strong {
-            font-size: 0.95em;
-            color: #343a40;
-        }
-
-
-        .auth-section {
-            margin-bottom: 20px;
-        }
-
-        .auth-fields {
-            display: none;
-        }
-
-            .auth-fields.active {
-                display: block;
-            }
-    </style>
+    @Html.Raw(Model.Style)
 </head>
 <body>
+    <button class="sidebar-toggle" id="sidebarToggle">
+        |||
+    </button>
+
     <div id="sidebar">
-        <a class="endpoint-link" href="/docs">
-            <h3>@Model.Name</h3>
-        </a>
-        <h4>Endpoints</h4>
+        <div class="sidebar-header">
+            <a href="/Docs">
+                <h3>@Model.Name</h3>
+            </a>
+        </div>
+
+        <div class="sidebar-search">
+            <input type="text" id="searchEndpoints" placeholder="Search endpoints...">
+        </div>
+
+        <div class="sidebar-title">
+            <span class="toggle-all" id="toggleAll">Expand All</span>
+        </div>
+
         <partial name="EndpointNode" model="Model.Groups" view-data="ViewData" />
     </div>
 
     <div id="content">
         @if(selected == null)
         {
-            <h1>@Model.Name</h1>
-            <h2>@Model.Version</h2>
-            @if(!string.IsNullOrWhiteSpace(version))
-            {
-                <a class="endpoint-link" href="/openapi/@(version).json" target="_blank">
-                    OpenAPI @version
-                </a>
-            }
-            <p>@Model.Description</p>
-            @if(!string.IsNullOrWhiteSpace(Model.ExampleBodyJson))
-            {
-                <pre class="json-viewer">@Model.ExampleBodyJson</pre>
-            }
-            else
-            {
-                <p>No return schema available.</p>
-            }
+            <div class="card">
+                <h1>@Model.Name</h1>
+                <h2>@Model.Version</h2>
+                @if(!string.IsNullOrWhiteSpace(version))
+                {
+                    <a class="btn" href="/openapi/@(version).json" target="_blank">
+                        OpenAPI @version
+                    </a>
+                }
+                <p>@Model.Description</p>
+                @if(!string.IsNullOrWhiteSpace(Model.ExampleBodyJson))
+                {
+                    <pre class="json-viewer">@Model.ExampleBodyJson</pre>
+                }
+                else
+                {
+                    <p>No return schema available.</p>
+                }
+            </div>
         }
         else
         {
             <div class="endpoint-header">
-                <span class="http-method @selected.HttpMethod">@selected.HttpMethod</span>
-                <h2>@selected.Route</h2>
+                <span class="endpoint-method @selected.HttpMethod">@selected.HttpMethod</span>
+                <h1 class="endpoint-title">@selected.Route</h1>
             </div>
-            <p>@summary</p>
+
+            <p class="endpoint-description">@summary</p>
+
             @if(parameters.Any())
             {
-                <h4>Additional Parameters</h4>
-                <ul>
-                    @foreach(var param in parameters)
-                    {
-                        <li>@param</li>
-                    }
-                </ul>
-            }
-
-            <h3>Parameters</h3>
-            @if(selected.Parameters.Any())
-            {
-                <table class="schema-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>Required</th>
-                            <th>Source</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach(var param in selected.Parameters)
+                <div class="card">
+                    <h3>Additional Parameters</h3>
+                    <ul>
+                        @foreach(var param in parameters)
                         {
-                            <tr>
-                                <td>@param.Name</td>
-                                <td>@param.Type</td>
-                                <td>@(param.IsRequired ? "Yes" : "No")</td>
-                                <td class="source-@param.Source.ToLower()">@param.Source</td>
-                                <td>@param.Description</td>
-                            </tr>
+                            <li>@param</li>
                         }
-                    </tbody>
-                </table>
-            }
-            else
-            {
-                <p>No parameters.</p>
-            }
-
-            <h3>Response</h3>
-            <p><strong>Type:</strong> @selected.ReturnType</p>
-            @if(!string.IsNullOrWhiteSpace(selected.ExampleJson))
-            {
-                <pre class="json-viewer">@selected.ExampleJson</pre>
-            }
-            else
-            {
-                <p>No return schema available.</p>
-            }
-
-            <hr />
-            <h3>Test this endpoint</h3>
-            <form method="post" action="/Docs?id=@selected.Id">
-                <input type="hidden" name="TestInput.Id" value="@selected.Id" />
-                <input type="hidden" name="TestInput.Method" value="@method" />
-                <input type="hidden" name="TestInput.Route" value="@route" />
-                @Html.AntiForgeryToken()
-
-                <div class="auth-section">
-                    <input type="hidden" id="authTypeValue" name="authTypeValue" value="@Model.TestInput.Authentication.Type" />
-                    <input type="hidden" id="apiKeyLocationValue" name="apiKeyLocationValue" value="@Model.TestInput.Authentication.ApiKeyLocation" />
-                    <label for="authType">Authentication Type</label>
-                    <select id="authType" name="TestInput.Authentication.Type" onchange="toggleAuthFields()">
-                        <option value="None">None</option>
-                        <option value="Bearer">Bearer Token</option>
-                        <option value="ApiKey">API Key</option>
-                        <option value="Basic">Basic Auth</option>
-                    </select>
-
-                    <div id="bearerFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Bearer ? "active" : "")">
-                        <label for="bearerToken">Bearer Token (Required)</label>
-                        <input type="text" id="bearerToken" name="TestInput.Authentication.BearerToken" value="@Model.TestInput.Authentication.BearerToken" placeholder="Enter Bearer Token" />
-                        @if(ModelState.ContainsKey("TestInput.Authentication.BearerToken"))
-                        {
-                            <div class="field-error">
-                                @ModelState["TestInput.Authentication.BearerToken"].Errors.FirstOrDefault()?.ErrorMessage
-                            </div>
-                        }
-                    </div>
-
-                    <div id="apiKeyFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.ApiKey ? "active" : "")">
-                        <label for="apiKeyValue">API Key (Required)</label>
-                        <input type="text" id="apiKeyValue" name="TestInput.Authentication.ApiKeyValue" value="@Model.TestInput.Authentication.ApiKeyValue" placeholder="Enter API Key" />
-                        @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyValue"))
-                        {
-                            <div class="field-error">
-                                @ModelState["TestInput.Authentication.ApiKeyValue"].Errors.FirstOrDefault()?.ErrorMessage
-                            </div>
-                        }
-
-                        <label for="apiKeyName">Header/Parameter Name (Optional, defaults to 'X-Api-Key')</label>
-                        <input type="text" id="apiKeyName" name="TestInput.Authentication.ApiKeyName" value="@Model.TestInput.Authentication.ApiKeyName" placeholder="e.g., X-Api-Key" />
-                        @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyName"))
-                        {
-                            <div class="field-error">
-                                @ModelState["TestInput.Authentication.ApiKeyName"].Errors.FirstOrDefault()?.ErrorMessage
-                            </div>
-                        }
-
-                        <label for="apiKeyLocation">Location</label>
-                        <select id="apiKeyLocation" name="TestInput.Authentication.ApiKeyLocation">
-                            <option value="Header">Header</option>
-                            <option value="Query">Query</option>
-                        </select>
-                    </div>
-
-                    <div id="basicFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Basic ? "active" : "")">
-                        <label for="basicUsername">Username (Required)</label>
-                        <input type="text" id="basicUsername" name="TestInput.Authentication.BasicUsername" value="@Model.TestInput.Authentication.BasicUsername" placeholder="Enter Username" />
-                        <label for="basicPassword">Password (Required)</label>
-                        <input type="password" id="basicPassword" name="TestInput.Authentication.BasicPassword" value="@Model.TestInput.Authentication.BasicPassword" placeholder="Enter Password" />
-                    </div>
-                    <button type="button" onclick="clearAuth()">Clear Authentication</button>
+                    </ul>
                 </div>
+            }
 
-                @foreach(var param in selected.Parameters)
+            <div class="card">
+                <h3>Parameters</h3>
+                @if(selected.Parameters.Any())
                 {
-                    if(param.IsValueParameter)
-                    {
-                        string value = Model.TestInput.Parameters.ContainsKey(param.Name) ? Model.TestInput.Parameters[param.Name] : Model.GenerateFlatSchema(param.Schema) ?? "";
-                        <div>
-                            <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label><br />
-                            @if(param.IsFromBody)
-                            {
-                                <textarea name="TestInput.Parameters[@param.Name]"
-                                          placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value</textarea>
-                            }
-                            else
-                            {
-                                <input type="text"
-                                       name="TestInput.Parameters[@param.Name]"
-                                       value="@value"
-                                       placeholder="@(param.IsRequired ? "Required" : "Optional")" />
-                            }
-                            @if(ModelState.ContainsKey($"TestInput.Parameters[{param.Name}]"))
+                    <div style="overflow-x: auto;">
+                        <table class="schema-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Required</th>
+                                    <th>Source</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach(var param in selected.Parameters)
+                                {
+                                    <tr>
+                                        <td>@param.Name</td>
+                                        <td>@param.Type</td>
+                                        <td>@(param.IsRequired ? "Yes" : "No")</td>
+                                        <td class="source-@param.Source.ToLower()">@param.Source</td>
+                                        <td>@param.Description</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p>No parameters.</p>
+                }
+            </div>
+
+            <div class="card">
+                <h3>Response</h3>
+                <p><strong>Type:</strong> @selected.ReturnType</p>
+                @if(!string.IsNullOrWhiteSpace(selected.ExampleJson))
+                {
+                    <pre class="json-viewer">@selected.ExampleJson</pre>
+                }
+                else
+                {
+                    <p>No return schema available.</p>
+                }
+            </div>
+
+            <div class="card test-form">
+                <h3>Test this endpoint</h3>
+                <form method="post" action="/Docs?id=@selected.Id" id="testForm">
+                    <input type="hidden" name="TestInput.Id" value="@selected.Id" />
+                    <input type="hidden" name="TestInput.Method" value="@method" />
+                    <input type="hidden" name="TestInput.Route" value="@route" />
+                    @Html.AntiForgeryToken()
+
+                    <div class="auth-section">
+                        <input type="hidden" id="authTypeValue" name="authTypeValue" value="@Model.TestInput.Authentication.Type" />
+                        <input type="hidden" id="apiKeyLocationValue" name="apiKeyLocationValue" value="@Model.TestInput.Authentication.ApiKeyLocation" />
+                        <label for="authType">Authentication Type</label>
+                        <select id="authType" name="TestInput.Authentication.Type" class="form-control" onchange="toggleAuthFields()">
+                            <option value="None">None</option>
+                            <option value="Bearer">Bearer Token</option>
+                            <option value="ApiKey">API Key</option>
+                            <option value="Basic">Basic Auth</option>
+                        </select>
+
+                        <div id="bearerFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Bearer ? "active" : "")">
+                            <label for="bearerToken">Bearer Token (Required)</label>
+                            <input type="text" id="bearerToken" name="TestInput.Authentication.BearerToken" value="@Model.TestInput.Authentication.BearerToken" placeholder="Enter Bearer Token" />
+                            @if(ModelState.ContainsKey("TestInput.Authentication.BearerToken"))
                             {
                                 <div class="field-error">
-                                    @ModelState[$"TestInput.Parameters[{param.Name}]"].Errors.FirstOrDefault()?.ErrorMessage
+                                    @ModelState["TestInput.Authentication.BearerToken"].Errors.FirstOrDefault()?.ErrorMessage
                                 </div>
                             }
                         </div>
-                    }
-                }
-                @if(!ModelState.IsValid && ModelState.Any(e => e.Value?.Errors?.Any(e => !string.IsNullOrWhiteSpace(e.ErrorMessage)) ?? false))
-                {
-                    <ul>
-                        @foreach(var error in ModelState.Where(kvp => !kvp.Key.StartsWith("TestInput.Parameters[")))
-                        {
-                            foreach(var err in error.Value.Errors)
-                            {
-                                if(!string.IsNullOrWhiteSpace(err.ErrorMessage))
-                                {
-                                    <li class="general-error">
-                                        @err.ErrorMessage
-                                    </li>
-                                }
-                            }
-                        }
-                    </ul>
-                }
 
-                <button type="submit">Test</button>
-            </form>
+                        <div id="apiKeyFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.ApiKey ? "active" : "")">
+                            <label for="apiKeyValue">API Key (Required)</label>
+                            <input type="text" id="apiKeyValue" name="TestInput.Authentication.ApiKeyValue" value="@Model.TestInput.Authentication.ApiKeyValue" placeholder="Enter API Key" />
+                            @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyValue"))
+                            {
+                                <div class="field-error">
+                                    @ModelState["TestInput.Authentication.ApiKeyValue"].Errors.FirstOrDefault()?.ErrorMessage
+                                </div>
+                            }
+
+                            <label for="apiKeyName">Header/Parameter Name (Optional, defaults to 'X-Api-Key')</label>
+                            <input type="text" id="apiKeyName" name="TestInput.Authentication.ApiKeyName" value="@Model.TestInput.Authentication.ApiKeyName" placeholder="e.g., X-Api-Key" />
+                            @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyName"))
+                            {
+                                <div class="field-error">
+                                    @ModelState["TestInput.Authentication.ApiKeyName"].Errors.FirstOrDefault()?.ErrorMessage
+                                </div>
+                            }
+
+                            <label for="apiKeyLocation">Location</label>
+                            <select id="apiKeyLocation" name="TestInput.Authentication.ApiKeyLocation" class="form-control">
+                                <option value="Header">Header</option>
+                                <option value="Query">Query</option>
+                            </select>
+                        </div>
+
+                        <div id="basicFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Basic ? "active" : "")">
+                            <label for="basicUsername">Username (Required)</label>
+                            <input type="text" id="basicUsername" name="TestInput.Authentication.BasicUsername" value="@Model.TestInput.Authentication.BasicUsername" placeholder="Enter Username" />
+                            <label for="basicPassword">Password (Required)</label>
+                            <input type="password" id="basicPassword" name="TestInput.Authentication.BasicPassword" value="@Model.TestInput.Authentication.BasicPassword" placeholder="Enter Password" />
+                        </div>
+                        <button type="button" class="btn btn-secondary" onclick="clearAuth()">Clear Authentication</button>
+                    </div>
+
+                    @foreach(var param in selected.Parameters)
+                    {
+                        if(param.IsValueParameter)
+                        {
+                            string value = Model.TestInput.Parameters.ContainsKey(param.Name) ? Model.TestInput.Parameters[param.Name] : Model.GenerateFlatSchema(param.Schema) ?? "";
+                            <div class="form-group">
+                                <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label>
+                                @if(param.IsFromBody)
+                                {
+                                    <textarea name="TestInput.Parameters[@param.Name]"
+                                              placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value</textarea>
+                                }
+                                else
+                                {
+                                    <input type="text"
+                                           name="TestInput.Parameters[@param.Name]"
+                                           value="@value"
+                                           placeholder="@(param.IsRequired ? "Required" : "Optional")" />
+                                }
+                                @if(ModelState.ContainsKey($"TestInput.Parameters[{param.Name}]"))
+                                {
+                                    <div class="field-error">
+                                        @ModelState[$"TestInput.Parameters[{param.Name}]"].Errors.FirstOrDefault()?.ErrorMessage
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    @if(!ModelState.IsValid && ModelState.Any(e => e.Value?.Errors?.Any(e => !string.IsNullOrWhiteSpace(e.ErrorMessage)) ?? false))
+                    {
+                        <div class="error-message">
+                            <ul>
+                                @foreach(var error in ModelState.Where(kvp => !kvp.Key.StartsWith("TestInput.Parameters[")))
+                                {
+                                    foreach(var err in error.Value.Errors)
+                                    {
+                                        if(!string.IsNullOrWhiteSpace(err.ErrorMessage))
+                                        {
+                                            <li>
+                                                @err.ErrorMessage
+                                            </li>
+                                        }
+                                    }
+                                }
+                            </ul>
+                        </div>
+                    }
+
+                    <button type="submit" class="btn" id="submitBtn">Test Endpoint</button>
+                    <div class="loading" id="loadingIndicator">
+                        <div class="loading-spinner"></div>
+                        <p>Sending request...</p>
+                    </div>
+                </form>
+            </div>
 
             @if(Model.TestResponse != null)
             {
-                <h4>Test Response</h4>
-                <pre class="json-viewer">@Model.TestResponse</pre>
+                <div class="card">
+                    <h4>Test Response</h4>
+                    <pre class="json-viewer">@Model.TestResponse</pre>
+                </div>
             }
         }
     </div>
@@ -472,83 +274,113 @@
         <div id="examples">
             <h3>Examples</h3>
 
-            <h4>cURL</h4>
-            <pre>
-curl -X @selected.HttpMethod https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")
-        @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-        {
-            <text>    -H "Content-Type: application/json"
-    -d '@Html.Raw(Model.RequestBodyJson)'</text>
-        }
-    </pre>
+            <div class="example-tabs">
+                <div class="example-tab active" data-tab="curl">cURL</div>
+                <div class="example-tab" data-tab="csharp">C#</div>
+                <div class="example-tab" data-tab="javascript">JavaScript</div>
+            </div>
 
-            <h4>C# (HttpClient)</h4>
-            <pre>
-using var client = new HttpClient();
-client.BaseAddress = new Uri("https://api.yourwebsite.com");
-            @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-            {
-                <text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
-using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
-            }
-            else
-            {
-                <text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
-            }
-response.EnsureSuccessStatusCode();
-var content = await response.Content.ReadAsStringAsync();
-                </pre>
+            <div class="example-tab-content active" id="curl-tab">
+                <pre>curl -X @selected.HttpMethod https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")
+                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                    {
+                        <text>    -H "Content-Type: application/json"
+                                    -d '@Html.Raw(Model.RequestBodyJson)'</text>
+                    }</pre>
+            </div>
 
-            <h4>fetch (JavaScript)</h4>
-            <pre>
-fetch("https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")", {
-    method: "@selected.HttpMethod",
-        @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-        {
-            <text>    headers: { "Content-Type": "application/json" },
-    body: @Html.Raw(Model.RequestBodyJson)</text>
-        }
-})
-.then(res => res.json())
-.then(data => console.log(data));
-                </pre>
+            <div class="example-tab-content" id="csharp-tab">
+                <pre>using var client = new HttpClient();
+                client.BaseAddress = new Uri("https://api.yourwebsite.com");
+                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                    {
+                        <text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
+                                using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
+                    }
+                    else
+                    {
+                        <text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
+                    }
+                response.EnsureSuccessStatusCode();
+                var content = await response.Content.ReadAsStringAsync();</pre>
+            </div>
+
+            <div class="example-tab-content" id="javascript-tab">
+                <pre>fetch("https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")", {
+                    method: "@selected.HttpMethod",
+                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                    {
+                        <text>    headers: { "Content-Type": "application/json" },
+                                    body: @Html.Raw(Model.RequestBodyJson)</text>
+                    }
+                })
+                .then(res => res.json())
+                .then(data => console.log(data));</pre>
+            </div>
         </div>
     }
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            // Establecer el valor de authType desde el campo oculto
-            var authTypeValue = document.getElementById("authTypeValue").value;
-            if (authTypeValue) {
-                document.getElementById("authType").value = authTypeValue;
+            // Initialize auth type and api key location from hidden fields
+            var authTypeItem = document.getElementById("authTypeValue");
+            if (authTypeItem) {
+                document.getElementById("authType").value = authTypeItem.value;
             }
 
-            // Establecer el valor de apiKeyLocation desde el campo oculto
-            var apiKeyLocationValue = document.getElementById("apiKeyLocationValue").value;
-            if (apiKeyLocationValue) {
-                document.getElementById("apiKeyLocation").value = apiKeyLocationValue;
+            var apiKeyLocationItem = document.getElementById("apiKeyLocationValue");
+            if (apiKeyLocationItem) {
+                document.getElementById("apiKeyLocation").value = apiKeyLocationItem.value;
             }
+
+            // Toggle auth fields based on initial value
+            toggleAuthFields();
+
+            // Setup example tabs
+            setupExampleTabs();
+
+            // Setup sidebar toggle for mobile
+            setupMobileSidebar();
+
+            // Setup endpoint search
+            setupEndpointSearch();
+
+            // Setup collapsible groups
+            setupCollapsibleGroups();
+
+            // Colapsar todo excepto la ruta seleccionada
+            collapseAllExceptSelected();
+
+            // Scroll to selected endpoint
+            scrollToSelectedEndpoint();
+
+            // Form submission loading indicator
+            setupFormLoadingIndicator();
         });
 
         function toggleAuthFields() {
-            var authType = document.getElementById("authType").value;
-            var bearerFields = document.getElementById("bearerFields");
-            var apiKeyFields = document.getElementById("apiKeyFields");
-            var basicFields = document.getElementById("basicFields");
-            bearerFields.classList.remove("active");
-            apiKeyFields.classList.remove("active");
-            basicFields.classList.remove("active");
-            if (authType === "Bearer") {
-                bearerFields.classList.add("active");
-            } else if (authType === "ApiKey") {
-                apiKeyFields.classList.add("active");
-            } else if (authType === "Basic") {
-                basicFields.classList.add("active");
+            var authType = document.getElementById("authType");
+
+            if(authType){
+                var bearerFields = document.getElementById("bearerFields");
+                var apiKeyFields = document.getElementById("apiKeyFields");
+                var basicFields = document.getElementById("basicFields");
+
+                bearerFields.classList.remove("active");
+                apiKeyFields.classList.remove("active");
+                basicFields.classList.remove("active");
+                if (authType.value === "Bearer") {
+                    bearerFields.classList.add("active");
+                } else if (authType.value === "ApiKey") {
+                    apiKeyFields.classList.add("active");
+                } else if (authType.value === "Basic") {
+                    basicFields.classList.add("active");
+                }
             }
         }
 
         function clearAuth() {
-            // Restablecer el formulario de autenticación
+            // Reset authentication form
             document.getElementById("authType").value = "None";
             document.getElementById("bearerToken").value = "";
             document.getElementById("apiKeyValue").value = "";
@@ -558,7 +390,7 @@ fetch("https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")", {
             document.getElementById("basicPassword").value = "";
             toggleAuthFields();
 
-            // Enviar solicitud para limpiar la sesión
+            // Send request to clear session
             fetch('/Docs?handler=ClearAuth', {
                 method: 'POST',
                 headers: {
@@ -569,6 +401,254 @@ fetch("https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")", {
                     console.log("Authentication cleared");
                 }
             });
+        }
+
+        function setupExampleTabs() {
+            const tabs = document.querySelectorAll('.example-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Remove active class from all tabs and contents
+                    document.querySelectorAll('.example-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.example-tab-content').forEach(c => c.classList.remove('active'));
+
+                    // Add active class to clicked tab and corresponding content
+                    tab.classList.add('active');
+                    const tabId = tab.getAttribute('data-tab');
+                    document.getElementById(`${tabId}-tab`).classList.add('active');
+                });
+            });
+        }
+
+        function setupMobileSidebar() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('active');
+                });
+            }
+
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768 &&
+                    !sidebar.contains(e.target) &&
+                    e.target !== sidebarToggle) {
+                    sidebar.classList.remove('active');
+                }
+            });
+        }
+
+        // Función para expandir un grupo y todos sus ancestros
+        function expandGroupAndAncestors(groupElement) {
+            let currentGroup = groupElement;
+            while (currentGroup) {
+                if (currentGroup.classList.contains('group-items')) {
+                    currentGroup.style.maxHeight = calculateTotalHeight(currentGroup) + 'px';
+                    const header = currentGroup.previousElementSibling;
+                    if (header && header.classList.contains('group-header')) {
+                        const toggle = header.querySelector('.group-toggle');
+                        if (toggle) toggle.classList.remove('collapsed');
+                    }
+                }
+                currentGroup = currentGroup.parentElement.closest('.endpoint-group');
+            }
+        }
+
+
+        // Función para colapsar todos los grupos excepto la ruta del elemento seleccionado
+        function collapseAllExceptSelected() {
+            const selectedLink = document.querySelector('.endpoint-link.selected');
+
+            // Colapsar todos los grupos primero
+            document.querySelectorAll('.group-items').forEach(group => {
+                group.style.maxHeight = '0';
+            });
+            document.querySelectorAll('.group-toggle').forEach(toggle => {
+                toggle.classList.add('collapsed');
+            });
+
+            // Si hay un elemento seleccionado, expandir su ruta
+            if (selectedLink) {
+                let currentGroup = selectedLink.closest('.group-items');
+                while (currentGroup) {
+                    const header = currentGroup.previousElementSibling;
+                    if (header && header.classList.contains('group-header')) {
+                        const toggle = header.querySelector('.group-toggle');
+                        if (toggle) {
+                            toggle.classList.remove('collapsed');
+                        }
+                    }
+                    currentGroup.style.maxHeight = calculateTotalHeight(currentGroup) + 'px';
+                    currentGroup = currentGroup.parentElement.closest('.group-items');
+                }
+            }
+        }
+
+        function setupEndpointSearch() {
+            const searchInput = document.getElementById('searchEndpoints');
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    const searchTerm = searchInput.value.toLowerCase();
+                    const endpointLinks = document.querySelectorAll('.endpoint-link');
+                    let anyVisible = false;
+
+                    // Primero ocultar todos los elementos
+                    endpointLinks.forEach(link => {
+                        link.style.display = 'none';
+                    });
+
+                    // Mostrar solo los que coinciden con la búsqueda
+                    endpointLinks.forEach(link => {
+                        const text = link.textContent.toLowerCase();
+                        if (text.includes(searchTerm)) {
+                            link.style.display = 'flex';
+                            anyVisible = true;
+
+                            // Expandir la jerarquía de grupos padres
+                            let parentGroup = link.closest('.group-items');
+                            while (parentGroup) {
+                                parentGroup.style.display = 'block';
+                                parentGroup.style.maxHeight = calculateTotalHeight(parentGroup) + 'px';
+
+                                const header = parentGroup.previousElementSibling;
+                                if (header && header.classList.contains('group-header')) {
+                                    header.style.display = 'flex';
+                                    const toggle = header.querySelector('.group-toggle');
+                                    if (toggle) toggle.classList.remove('collapsed');
+                                }
+
+                                parentGroup = parentGroup.parentElement.closest('.group-items');
+                            }
+                        }
+                    });
+
+                    // Ocultar grupos vacíos
+                    document.querySelectorAll('.group-items').forEach(group => {
+                        const visibleItems = group.querySelectorAll('.endpoint-link[style="display: flex;"]').length;
+                        const childGroups = group.querySelectorAll('.group-items');
+                        let childVisible = false;
+
+                        childGroups.forEach(child => {
+                            if (child.style.display !== 'none') {
+                                childVisible = true;
+                            }
+                        });
+
+                        if (visibleItems === 0 && !childVisible) {
+                            group.style.display = 'none';
+                            const header = group.previousElementSibling;
+                            if (header && header.classList.contains('group-header')) {
+                                header.style.display = 'none';
+                            }
+                        } else {
+                            group.style.display = 'block';
+                            const header = group.previousElementSibling;
+                            if (header && header.classList.contains('group-header')) {
+                                header.style.display = 'flex';
+                            }
+                        }
+                    });
+                });
+            }
+        }
+
+        function setupCollapsibleGroups() {
+            const groupHeaders = document.querySelectorAll('.group-header');
+            const toggleAllBtn = document.getElementById('toggleAll');
+            let allCollapsed = true; // Inicialmente todo colapsado
+
+            // Configurar evento click para los headers
+            groupHeaders.forEach(header => {
+                header.addEventListener('click', (e) => {
+                    // Si el click fue en el toggleAll, ignorar
+                    if (e.target === toggleAllBtn) return;
+
+                    const groupItems = header.nextElementSibling;
+                    const toggle = header.querySelector('.group-toggle');
+
+                    if (groupItems.style.maxHeight !== '0px') {
+                        groupItems.style.maxHeight = '0';
+                        toggle.classList.add('collapsed');
+                    } else {
+                        groupItems.style.maxHeight = calculateTotalHeight(groupItems) + 'px';
+                        toggle.classList.remove('collapsed');
+
+                        // También expandir los grupos padres
+                        let parentGroup = header.parentElement.closest('.group-items');
+                        while (parentGroup) {
+                            parentGroup.style.maxHeight = calculateTotalHeight(parentGroup) + 'px';
+                            const parentHeader = parentGroup.previousElementSibling;
+                            if (parentHeader && parentHeader.classList.contains('group-header')) {
+                                const parentToggle = parentHeader.querySelector('.group-toggle');
+                                if (parentToggle) parentToggle.classList.remove('collapsed');
+                            }
+                            parentGroup = parentGroup.parentElement.closest('.group-items');
+                        }
+                    }
+                });
+            });
+
+            // Configurar el botón "Expand All/Collapse All"
+            if (toggleAllBtn) {
+                toggleAllBtn.addEventListener('click', () => {
+                    allCollapsed = !allCollapsed;
+                    toggleAllBtn.textContent = allCollapsed ? 'Expand All' : 'Collapse All';
+
+                    groupHeaders.forEach(header => {
+                        const groupItems = header.nextElementSibling;
+                        const toggle = header.querySelector('.group-toggle');
+
+                        if (allCollapsed) {
+                            groupItems.style.maxHeight = '0';
+                            toggle.classList.add('collapsed');
+                        } else {
+                            groupItems.style.maxHeight = calculateTotalHeight(groupItems) + 'px';
+                            toggle.classList.remove('collapsed');
+                        }
+                    });
+                });
+            }
+        }
+
+        function scrollToSelectedEndpoint() {
+            const selectedLink = document.querySelector('.endpoint-link.selected');
+            if (selectedLink) {
+                // Expandir solo la ruta del elemento seleccionado
+                collapseAllExceptSelected();
+
+                // Scroll al elemento seleccionado
+                setTimeout(() => {
+                    selectedLink.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300); // Pequeño delay para permitir la animación de expansión
+            }
+        }
+
+        // Función para calcular la altura total incluyendo hijos anidados
+        function calculateTotalHeight(element) {
+            let height = element.scrollHeight;
+            const nestedGroups = element.querySelectorAll('.group-items');
+
+            nestedGroups.forEach(group => {
+                if (group.style.maxHeight && group.style.maxHeight !== '0px') {
+                    height += calculateTotalHeight(group);
+                }
+            });
+
+            return height;
+        }
+
+        function setupFormLoadingIndicator() {
+            const form = document.getElementById('testForm');
+            if (form) {
+                form.addEventListener('submit', () => {
+                    const submitBtn = document.getElementById('submitBtn');
+                    const loadingIndicator = document.getElementById('loadingIndicator');
+
+                    submitBtn.style.display = 'none';
+                    loadingIndicator.style.display = 'block';
+                });
+            }
         }
     </script>
 </body>
