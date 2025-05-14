@@ -466,7 +466,7 @@ internal class IndexModel : PageModel
             margin: 0;
         }
 
-        /* Sidebar styles */
+
         #sidebar {
             width: var(--sidebar-width);
             background-color: var(--sidebar-bg);
@@ -477,7 +477,8 @@ internal class IndexModel : PageModel
             overflow-y: auto;
             transition: var(--transition);
             z-index: 1000;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);  .
+            scroll-behavior: smooth;
         }
 
         .sidebar-header {
@@ -540,15 +541,17 @@ internal class IndexModel : PageModel
 
         .endpoint-group {
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.5rem;
         }
 
         .group-header {
-            padding: 0.5rem 1rem;
+            padding: 0.15rem 1rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
             transition: var(--transition);
+            user-select: none;
         }
 
             .group-header:hover {
@@ -558,7 +561,8 @@ internal class IndexModel : PageModel
         .group-title {
             font-weight: 500;
             display: flex;
-            align-items: center;
+            align-items: center; 
+            flex-grow: 1;
         }
 
             .group-title::before {
@@ -568,7 +572,9 @@ internal class IndexModel : PageModel
             }
 
         .group-toggle {
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease; 
+            margin-left: 0.5rem;
+            flex-shrink: 0; 
         }
 
             .group-toggle.collapsed {
@@ -584,12 +590,9 @@ internal class IndexModel : PageModel
             transition: max-height 0.3s ease;
         }
 
-            .group-items.expanded {
-                max-height: 1000px; /* Adjust based on your content */
-            }
-
         .endpoint-item {                            
-            padding: 0.25rem 0.5rem 0.25rem 1rem;
+            padding: 0.15rem 0.5rem 0.15rem 1rem;  .
+            overflow: hidden; 
         }
 
         a.endpoint-link {
@@ -599,19 +602,27 @@ internal class IndexModel : PageModel
             align-items: center;
             font-size: 0.9rem;
             transition: var(--transition);
+            white-space: nowrap; 
+            overflow: hidden; 
+            word-break: break-word;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px; 
+            margin: 0.1rem 0; 
         }
 
             a.endpoint-link:hover {
                 color: white;
+                background-color: rgba(255, 255, 255, 0.1);
             }
 
-            a.endpoint-link.selected {    
+            a.endpoint-link.selected {   
                 background-color: var(--sidebar-active);
                 color: black;
                 font-weight: 600;
                 padding: 0.5rem;
-                border-radius: 4px;
-                margin: 0.25rem 0;
+                white-space: normal; 
+                overflow: visible;
+                word-break: break-word;
             }
 
         .endpoint-method {
@@ -623,7 +634,14 @@ internal class IndexModel : PageModel
             margin-right: 0.5rem;
             text-transform: uppercase;
             min-width: 50px;
-            text-align: center;
+            text-align: center;  
+            flex-shrink: 0;
+        }
+
+        .endpoint-route {
+            flex-grow: 1;
+            overflow: hidden;
+            word-break: break-word;
         }
 
         .GET {
@@ -656,13 +674,12 @@ internal class IndexModel : PageModel
             color: white;
         }
 
-        /* Main content styles */
         #content {
             flex: 1;
             padding: 2rem;
         }
 
-        /* Examples panel styles */
+ 
         #examples {
             width: 350px;
             padding: 2rem;
@@ -674,7 +691,7 @@ internal class IndexModel : PageModel
             height: 100vh;
         }
 
-        /* Common styles */
+
         .card {
             background-color: white;
             border-radius: 8px;
@@ -712,7 +729,7 @@ internal class IndexModel : PageModel
             margin-bottom: 1rem;
         }
 
-        /* Endpoint header */
+       
         .endpoint-header {
             display: flex;
             align-items: center;
@@ -730,7 +747,7 @@ internal class IndexModel : PageModel
             margin-bottom: 1.5rem;
         }
 
-        /* Parameters table */
+      
         .schema-table {
             width: 100%;
             border-collapse: collapse;
@@ -762,7 +779,7 @@ internal class IndexModel : PageModel
             font-weight: 600;
         }
 
-        /* JSON viewer */
+    
         .json-viewer {
             background-color: var(--code-bg);
             color: var(--code-text);
@@ -777,7 +794,7 @@ internal class IndexModel : PageModel
             margin: 1rem 0;
         }
 
-        /* Test form */
+      
         .test-form {
             margin-top: 2rem;
         }
@@ -863,7 +880,7 @@ internal class IndexModel : PageModel
                 display: block;
             }
 
-        /* Error messages */
+   
         .error-message {
             color: var(--danger-color);
             background-color: #f8d7da;
@@ -907,7 +924,7 @@ internal class IndexModel : PageModel
                 display: block;
             }
 
-        /* Responsive */
+
         @media (max-width: 1200px) {
             #examples {
                 display: none;
@@ -921,6 +938,7 @@ internal class IndexModel : PageModel
                 top: 0;
                 height: 100vh;
                 z-index: 1000;
+                width: 260px; 
             }
 
                 #sidebar.active {
@@ -948,9 +966,12 @@ internal class IndexModel : PageModel
                 cursor: pointer;
                 box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
             }
+        }   
+    
+        a.endpoint-link {
+            font-size: 0.85rem;
         }
 
-        /* Loading indicator */
         .loading {
             display: none;
             text-align: center;

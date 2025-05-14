@@ -321,7 +321,8 @@
     }
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        // Auth related functions
+        function initAuthFields() {
             // Initialize auth type and api key location from hidden fields
             var authTypeItem = document.getElementById("authTypeValue");
             if (authTypeItem) {
@@ -333,35 +334,13 @@
                 document.getElementById("apiKeyLocation").value = apiKeyLocationItem.value;
             }
 
-            // Toggle auth fields based on initial value
             toggleAuthFields();
-
-            // Setup example tabs
-            setupExampleTabs();
-
-            // Setup sidebar toggle for mobile
-            setupMobileSidebar();
-
-            // Setup endpoint search
-            setupEndpointSearch();
-
-            // Setup collapsible groups
-            setupCollapsibleGroups();
-
-            // Colapsar todo excepto la ruta seleccionada
-            collapseAllExceptSelected();
-
-            // Scroll to selected endpoint
-            scrollToSelectedEndpoint();
-
-            // Form submission loading indicator
-            setupFormLoadingIndicator();
-        });
+        }
 
         function toggleAuthFields() {
             var authType = document.getElementById("authType");
 
-            if(authType){
+            if (authType) {
                 var bearerFields = document.getElementById("bearerFields");
                 var apiKeyFields = document.getElementById("apiKeyFields");
                 var basicFields = document.getElementById("basicFields");
@@ -369,6 +348,7 @@
                 bearerFields.classList.remove("active");
                 apiKeyFields.classList.remove("active");
                 basicFields.classList.remove("active");
+
                 if (authType.value === "Bearer") {
                     bearerFields.classList.add("active");
                 } else if (authType.value === "ApiKey") {
@@ -403,6 +383,7 @@
             });
         }
 
+        // UI Setup functions
         function setupExampleTabs() {
             const tabs = document.querySelectorAll('.example-tab');
             tabs.forEach(tab => {
@@ -439,52 +420,173 @@
             });
         }
 
-        // Función para expandir un grupo y todos sus ancestros
-        function expandGroupAndAncestors(groupElement) {
-            let currentGroup = groupElement;
-            while (currentGroup) {
-                if (currentGroup.classList.contains('group-items')) {
-                    currentGroup.style.maxHeight = calculateTotalHeight(currentGroup) + 'px';
-                    const header = currentGroup.previousElementSibling;
-                    if (header && header.classList.contains('group-header')) {
+        // Collapsible groups functions
+        function setupCollapsibleGroups() {
+            const groupHeaders = document.querySelectorAll('.group-header');
+            const toggleAllBtn = document.getElementById('toggleAll');
+            let allCollapsed = true;
+
+            // Primero calculamos todas las alturas correctamente
+            calculateAllGroupHeights();
+
+            // Configurar evento click para los headers
+            groupHeaders.forEach(header => {
+                header.addEventListener('click', (e) => {
+                    if (e.target === toggleAllBtn) return;
+
+                    const groupItems = header.nextElementSibling;
+                    const toggle = header.querySelector('.group-toggle');
+
+                    toggleGroup(groupItems, toggle);
+                });
+            });
+
+            // Configurar el botón "Expand All/Collapse All"
+            if (toggleAllBtn) {
+                toggleAllBtn.addEventListener('click', () => {
+                    allCollapsed = !allCollapsed;
+                    toggleAllBtn.textContent = allCollapsed ? 'Expand All' : 'Collapse All';
+
+                    groupHeaders.forEach(header => {
+                        const groupItems = header.nextElementSibling;
                         const toggle = header.querySelector('.group-toggle');
-                        if (toggle) toggle.classList.remove('collapsed');
-                    }
-                }
-                currentGroup = currentGroup.parentElement.closest('.endpoint-group');
+
+                        if (allCollapsed) {
+                            collapseGroup(groupItems, toggle);
+                        } else {
+                            expandGroup(groupItems, toggle);
+                        }
+                    });
+                });
             }
         }
 
+        function calculateAllGroupHeights() {
+            // Obtenemos todos los grupos desde los más profundos hasta los más superficiales
+            const allGroups = Array.from(document.querySelectorAll('.group-items'));
 
-        // Función para colapsar todos los grupos excepto la ruta del elemento seleccionado
-        function collapseAllExceptSelected() {
-            const selectedLink = document.querySelector('.endpoint-link.selected');
+            // Ordenamos los grupos por profundidad (los más profundos primero)
+            allGroups.sort((a, b) => {
+                const depthA = getDepth(a);
+                const depthB = getDepth(b);
+                return depthB - depthA;
+            });
 
-            // Colapsar todos los grupos primero
+            // Calculamos la altura para cada grupo
+            allGroups.forEach(group => {
+                const height = calculateGroupHeightRecursive(group);
+                group.dataset.calculatedHeight = height;
+            });
+        }
+
+        function getDepth(element) {
+            let depth = 0;
+            let current = element;
+
+            while (current) {
+                depth++;
+                current = current.parentElement.closest('.group-items');
+            }
+
+            return depth;
+        }
+
+        function calculateGroupHeightRecursive(groupElement) {
+            let height = 0;
+
+            // Sumamos la altura de los elementos directos
+            Array.from(groupElement.children).forEach(child => {
+                if (child.style.display === 'none') return;
+
+                // Sumamos la altura del elemento más sus márgenes
+                const style = window.getComputedStyle(child);
+                const margin = parseInt(style.marginTop) + parseInt(style.marginBottom);
+                height += child.offsetHeight + margin;
+
+                // Si es un grupo anidado, sumamos su altura completa si está expandido
+                if (child.classList.contains('group-items')) {
+                    if (child.style.maxHeight !== '0px') {
+                        height += parseInt(child.dataset.calculatedHeight || calculateGroupHeightRecursive(child));
+                    }
+                }
+                // Si es una lista de endpoints, procesamos sus hijos
+                else if (child.classList.contains('endpoint-list')) {
+                    Array.from(child.children).forEach(grandChild => {
+                        if (grandChild.classList.contains('endpoint-group')) {
+                            const items = grandChild.querySelector('.group-items');
+                            if (items && items.style.maxHeight !== '0px') {
+                                height += parseInt(items.dataset.calculatedHeight || calculateGroupHeightRecursive(items));
+                            }
+                        }
+                    });
+                }
+            });
+
+            return height;
+        }
+
+        function expandGroup(groupItems, toggle) {
+            // Calculamos la altura en tiempo real para asegurarnos que es correcta
+            const height = calculateGroupHeightRecursive(groupItems);
+            groupItems.style.maxHeight = height + 'px';
+            if (toggle) toggle.classList.remove('collapsed');
+
+            // También expandimos los grupos padres
+            let parentGroup = groupItems.parentElement.closest('.group-items');
+            while (parentGroup) {
+                const parentHeight = calculateGroupHeightRecursive(parentGroup);
+                parentGroup.style.maxHeight = parentHeight + 'px';
+
+                const parentHeader = parentGroup.previousElementSibling;
+                if (parentHeader && parentHeader.classList.contains('group-header')) {
+                    const parentToggle = parentHeader.querySelector('.group-toggle');
+                    if (parentToggle) parentToggle.classList.remove('collapsed');
+                }
+
+                parentGroup = parentGroup.parentElement.closest('.group-items');
+            }
+        }
+
+        function collapseGroup(groupItems, toggle) {
+            groupItems.style.maxHeight = '0';
+            if (toggle) toggle.classList.add('collapsed');
+        }
+
+        function toggleGroup(groupItems, toggle) {
+            if (groupItems.style.maxHeight !== '0px') {
+                collapseGroup(groupItems, toggle);
+            } else {
+                expandGroup(groupItems, toggle);
+            }
+        }
+
+        // Llamar a esta función al cargar la página
+        function initMenu() {
+            calculateAllGroupHeights();
+
+            // Expandir todos los grupos inicialmente para calcular correctamente las alturas
             document.querySelectorAll('.group-items').forEach(group => {
                 group.style.maxHeight = '0';
             });
-            document.querySelectorAll('.group-toggle').forEach(toggle => {
-                toggle.classList.add('collapsed');
-            });
 
-            // Si hay un elemento seleccionado, expandir su ruta
-            if (selectedLink) {
-                let currentGroup = selectedLink.closest('.group-items');
-                while (currentGroup) {
-                    const header = currentGroup.previousElementSibling;
-                    if (header && header.classList.contains('group-header')) {
-                        const toggle = header.querySelector('.group-toggle');
-                        if (toggle) {
-                            toggle.classList.remove('collapsed');
-                        }
+            // Recalcular después de colapsar
+            setTimeout(() => {
+                calculateAllGroupHeights();
+
+                // Expandir solo la ruta seleccionada
+                const selectedLink = document.querySelector('.endpoint-link.selected');
+                if (selectedLink) {
+                    let currentGroup = selectedLink.closest('.group-items');
+                    while (currentGroup) {
+                        const toggle = currentGroup.previousElementSibling?.querySelector('.group-toggle');
+                        expandGroup(currentGroup, toggle);
+                        currentGroup = currentGroup.parentElement.closest('.group-items');
                     }
-                    currentGroup.style.maxHeight = calculateTotalHeight(currentGroup) + 'px';
-                    currentGroup = currentGroup.parentElement.closest('.group-items');
                 }
-            }
+            }, 100);
         }
 
+        // Search functionality
         function setupEndpointSearch() {
             const searchInput = document.getElementById('searchEndpoints');
             if (searchInput) {
@@ -493,29 +595,27 @@
                     const endpointLinks = document.querySelectorAll('.endpoint-link');
                     let anyVisible = false;
 
-                    // Primero ocultar todos los elementos
+                    // First hide all elements
                     endpointLinks.forEach(link => {
                         link.style.display = 'none';
                     });
 
-                    // Mostrar solo los que coinciden con la búsqueda
+                    // Show only matching elements
                     endpointLinks.forEach(link => {
                         const text = link.textContent.toLowerCase();
                         if (text.includes(searchTerm)) {
                             link.style.display = 'flex';
                             anyVisible = true;
 
-                            // Expandir la jerarquía de grupos padres
+                            // Expand parent hierarchy
                             let parentGroup = link.closest('.group-items');
                             while (parentGroup) {
                                 parentGroup.style.display = 'block';
-                                parentGroup.style.maxHeight = calculateTotalHeight(parentGroup) + 'px';
+                                expandGroup(parentGroup);
 
                                 const header = parentGroup.previousElementSibling;
                                 if (header && header.classList.contains('group-header')) {
                                     header.style.display = 'flex';
-                                    const toggle = header.querySelector('.group-toggle');
-                                    if (toggle) toggle.classList.remove('collapsed');
                                 }
 
                                 parentGroup = parentGroup.parentElement.closest('.group-items');
@@ -523,7 +623,7 @@
                         }
                     });
 
-                    // Ocultar grupos vacíos
+                    // Hide empty groups
                     document.querySelectorAll('.group-items').forEach(group => {
                         const visibleItems = group.querySelectorAll('.endpoint-link[style="display: flex;"]').length;
                         const childGroups = group.querySelectorAll('.group-items');
@@ -553,91 +653,39 @@
             }
         }
 
-        function setupCollapsibleGroups() {
-            const groupHeaders = document.querySelectorAll('.group-header');
-            const toggleAllBtn = document.getElementById('toggleAll');
-            let allCollapsed = true; // Inicialmente todo colapsado
+        // Selected endpoint functions
+        function collapseAllExceptSelected() {
+            const selectedLink = document.querySelector('.endpoint-link.selected');
 
-            // Configurar evento click para los headers
-            groupHeaders.forEach(header => {
-                header.addEventListener('click', (e) => {
-                    // Si el click fue en el toggleAll, ignorar
-                    if (e.target === toggleAllBtn) return;
-
-                    const groupItems = header.nextElementSibling;
-                    const toggle = header.querySelector('.group-toggle');
-
-                    if (groupItems.style.maxHeight !== '0px') {
-                        groupItems.style.maxHeight = '0';
-                        toggle.classList.add('collapsed');
-                    } else {
-                        groupItems.style.maxHeight = calculateTotalHeight(groupItems) + 'px';
-                        toggle.classList.remove('collapsed');
-
-                        // También expandir los grupos padres
-                        let parentGroup = header.parentElement.closest('.group-items');
-                        while (parentGroup) {
-                            parentGroup.style.maxHeight = calculateTotalHeight(parentGroup) + 'px';
-                            const parentHeader = parentGroup.previousElementSibling;
-                            if (parentHeader && parentHeader.classList.contains('group-header')) {
-                                const parentToggle = parentHeader.querySelector('.group-toggle');
-                                if (parentToggle) parentToggle.classList.remove('collapsed');
-                            }
-                            parentGroup = parentGroup.parentElement.closest('.group-items');
-                        }
-                    }
-                });
+            // Collapse all groups first
+            document.querySelectorAll('.group-items').forEach(group => {
+                collapseGroup(group);
             });
 
-            // Configurar el botón "Expand All/Collapse All"
-            if (toggleAllBtn) {
-                toggleAllBtn.addEventListener('click', () => {
-                    allCollapsed = !allCollapsed;
-                    toggleAllBtn.textContent = allCollapsed ? 'Expand All' : 'Collapse All';
-
-                    groupHeaders.forEach(header => {
-                        const groupItems = header.nextElementSibling;
-                        const toggle = header.querySelector('.group-toggle');
-
-                        if (allCollapsed) {
-                            groupItems.style.maxHeight = '0';
-                            toggle.classList.add('collapsed');
-                        } else {
-                            groupItems.style.maxHeight = calculateTotalHeight(groupItems) + 'px';
-                            toggle.classList.remove('collapsed');
-                        }
-                    });
-                });
+            // If there's a selected element, expand its path
+            if (selectedLink) {
+                let currentGroup = selectedLink.closest('.group-items');
+                while (currentGroup) {
+                    expandGroup(currentGroup);
+                    currentGroup = currentGroup.parentElement.closest('.group-items');
+                }
             }
         }
 
         function scrollToSelectedEndpoint() {
             const selectedLink = document.querySelector('.endpoint-link.selected');
             if (selectedLink) {
-                // Expandir solo la ruta del elemento seleccionado
+                // Expand only the selected element's path
                 collapseAllExceptSelected();
 
-                // Scroll al elemento seleccionado
+                // Scroll to selected element
                 setTimeout(() => {
                     selectedLink.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 300); // Pequeño delay para permitir la animación de expansión
+                }, 300);
             }
         }
 
-        // Función para calcular la altura total incluyendo hijos anidados
-        function calculateTotalHeight(element) {
-            let height = element.scrollHeight;
-            const nestedGroups = element.querySelectorAll('.group-items');
-
-            nestedGroups.forEach(group => {
-                if (group.style.maxHeight && group.style.maxHeight !== '0px') {
-                    height += calculateTotalHeight(group);
-                }
-            });
-
-            return height;
-        }
-
+        // Form submission
         function setupFormLoadingIndicator() {
             const form = document.getElementById('testForm');
             if (form) {
@@ -650,6 +698,19 @@
                 });
             }
         }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Initialize UI components
+            initAuthFields();
+            setupExampleTabs();
+            setupMobileSidebar();
+            setupEndpointSearch();
+            setupCollapsibleGroups();
+            collapseAllExceptSelected();
+            scrollToSelectedEndpoint();
+            setupFormLoadingIndicator();
+            initMenu();
+        });
     </script>
 </body>
 </html>
