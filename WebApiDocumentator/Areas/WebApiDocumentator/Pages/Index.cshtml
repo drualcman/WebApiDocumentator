@@ -273,7 +273,6 @@
     {
         <div id="examples">
             <h3>Examples</h3>
-
             <div class="example-tabs">
                 <div class="example-tab active" data-tab="curl">cURL</div>
                 <div class="example-tab" data-tab="csharp">C#</div>
@@ -282,40 +281,40 @@
 
             <div class="example-tab-content active" id="curl-tab">
                 <pre>curl -X @selected.HttpMethod https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")
-                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                    {
-                        <text>    -H "Content-Type: application/json"
-                                                    -d '@Html.Raw(Model.RequestBodyJson)'</text>
-                    }</pre>
+@if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+{
+<text>     -H "Content-Type: application/json"
+     -d '@Html.Raw(Model.RequestBodyJson)'</text>
+}</pre>
             </div>
 
             <div class="example-tab-content" id="csharp-tab">
                 <pre>using var client = new HttpClient();
-                        client.BaseAddress = new Uri("https://api.yourwebsite.com");
-                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                    {
-                        <text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
-                                                using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
-                    }
-                    else
-                    {
-                        <text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
-                    }
-                        response.EnsureSuccessStatusCode();
-                        var content = await response.Content.ReadAsStringAsync();</pre>
+client.BaseAddress = new Uri("https://api.yourwebsite.com");
+@if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+{
+<text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
+using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
+}
+else
+{
+<text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
+}
+response.EnsureSuccessStatusCode();
+var content = await response.Content.ReadAsStringAsync();</pre>
             </div>
 
             <div class="example-tab-content" id="javascript-tab">
                 <pre>fetch("https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")", {
-                            method: "@selected.HttpMethod",
-                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                    {
-                        <text>    headers: { "Content-Type": "application/json" },
-                                                    body: @Html.Raw(Model.RequestBodyJson)</text>
-                    }
-                        })
-                        .then(res => res.json())
-                        .then(data => console.log(data));</pre>
+     method: "@selected.HttpMethod",
+@if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+{
+    <text>     headers: { "Content-Type": "application/json" },
+     body: @Html.Raw(Model.RequestBodyJson)</text>
+}
+})
+.then(res => res.json())
+.then(data => console.log(data));</pre>
             </div>
         </div>
     }

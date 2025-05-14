@@ -14,7 +14,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMetadataProvider, MinimalApiMetadataProvider>();
         services.AddSingleton<IMetadataProvider, ControllerMetadataProvider>();
         services.AddSingleton<CompositeMetadataProvider>();
-
         services.AddRazorPages(options =>
         {
             if(!string.IsNullOrWhiteSpace(customOptions.DocsBaseUrl))
@@ -34,7 +33,6 @@ public static class ServiceCollectionExtensions
             options.Cookie.HttpOnly = true; // Seguridad: evita acceso desde JavaScript
             options.Cookie.IsEssential = true; // Necesario para GDPR
         });
-
         return services;
     }
 
@@ -45,8 +43,6 @@ public static class ServiceCollectionExtensions
         {
             endpoints.MapRazorPages();
         });
-
-
         return app;
     }
 
