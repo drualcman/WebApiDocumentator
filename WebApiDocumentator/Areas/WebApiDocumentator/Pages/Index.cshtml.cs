@@ -14,6 +14,8 @@ internal class IndexModel : PageModel
     public string Name => _options.ApiName;
     public string Version => _options.Version;
     public string Description => _options.Description;
+    public string BaseUrl => $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
+    public string DocsBaseUrl => string.IsNullOrWhiteSpace(_options.DocsBaseUrl) ? "WebApiDocumentator" : _options.DocsBaseUrl.TrimStart('/');
     public string? TestResponse { get; private set; }
     [BindProperty]
     public EndpointTestInput TestInput { get; set; } = new();
@@ -1002,6 +1004,30 @@ internal class IndexModel : PageModel
             100% {
                 transform: rotate(360deg);
             }
+        }
+        .example-header {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 0.5rem;
+        }
+
+        .copy-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .copy-btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .copy-btn.copied {
+            background-color: var(--success-color);
         }
     </style>
 ";

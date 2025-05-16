@@ -157,7 +157,7 @@
 
             <div class="card test-form">
                 <h3>Test this endpoint</h3>
-                <form method="post" action="/Docs?id=@selected.Id" id="testForm">
+                <form method="post" action="@($"/{Model.DocsBaseUrl}?id={selected.Id}")" id="testForm">
                     <input type="hidden" name="TestInput.Id" value="@selected.Id" />
                     <input type="hidden" name="TestInput.Method" value="@method" />
                     <input type="hidden" name="TestInput.Route" value="@route" />
@@ -297,41 +297,50 @@
             </div>
 
             <div class="example-tab-content active" id="curl-tab">
-                <pre>curl -X @selected.HttpMethod https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")
+                <div class="example-header">
+                    <button class="copy-btn" data-target="curl-example">Copy</button>
+                </div>
+                <pre id="curl-example">curl -X @selected.HttpMethod @($"{Model.BaseUrl}/{Model.ExampleRequestUrl.TrimStart('/')}")
                     @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
                     {
                         <text>     -H "Content-Type: application/json"
-             -d '@Html.Raw(Model.RequestBodyJson)'</text>
+     -d '@Html.Raw(Model.RequestBodyJson)'</text>
                     }</pre>
             </div>
 
             <div class="example-tab-content" id="csharp-tab">
-                <pre>using var client = new HttpClient();
-    client.BaseAddress = new Uri("https://api.yourwebsite.com");
+                <div class="example-header">
+                    <button class="copy-btn" data-target="csharp-example">Copy</button>
+                </div>
+                <pre id="csharp-example">using var client = new HttpClient();
+client.BaseAddress = new Uri("@Model.BaseUrl");
                     @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
                     {
                         <text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
-        using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
+using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
                     }
                     else
                     {
                         <text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
                     }
-    response.EnsureSuccessStatusCode();
-    var content = await response.Content.ReadAsStringAsync();</pre>
+response.EnsureSuccessStatusCode();
+var content = await response.Content.ReadAsStringAsync();</pre>
             </div>
 
             <div class="example-tab-content" id="javascript-tab">
-                <pre>fetch("https://api.yourwebsite.com@($"{Model.ExampleRequestUrl}")", {
-         method: "@selected.HttpMethod",
+                <div class="example-header">
+                    <button class="copy-btn" data-target="javascript-example">Copy</button>
+                </div>
+                <pre id="javascript-example">fetch("@($"{Model.BaseUrl}/{Model.ExampleRequestUrl.TrimStart('/')}")", {
+     method: "@selected.HttpMethod",
                     @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
                     {
                         <text>     headers: { "Content-Type": "application/json" },
-             body: @Html.Raw(Model.RequestBodyJson)</text>
+     body: @Html.Raw(Model.RequestBodyJson)</text>
                     }
-    })
-    .then(res => res.json())
-    .then(data => console.log(data));</pre>
+})
+.then(res => res.json())
+.then(data => console.log(data));</pre>
             </div>
         </div>
     }
@@ -736,6 +745,33 @@
                 });
             }
         }
+        // Copy functionality
+        function setupCopyButtons() {
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-target');
+                    const codeElement = document.getElementById(targetId);
+
+                    if (codeElement) {
+                        const textToCopy = codeElement.textContent;
+                        navigator.clipboard.writeText(textToCopy).then(() => {
+                            // Feedback visual
+                            this.textContent = 'Copied!';
+                            this.classList.add('copied');
+
+                            // Reset after 2 seconds
+                            setTimeout(() => {
+                                this.textContent = 'Copy';
+                                this.classList.remove('copied');
+                            }, 2000);
+                        }).catch(err => {
+                            console.error('Failed to copy text: ', err);
+                        });
+                    }
+                });
+            });
+        }
+
 
         document.addEventListener("DOMContentLoaded", function () {
             // Initialize UI components
@@ -747,6 +783,7 @@
             setupCollapsibleGroups();
             collapseAllExceptSelected();
             setupFormLoadingIndicator();
+            setupCopyButtons();
             initMenu();
             scrollToSelectedEndpoint();
         });
