@@ -482,6 +482,7 @@ internal class IndexModel : PageModel
             z-index: 1000;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);  .
             scroll-behavior: smooth;
+            min-width: 20rem;
         }
 
         .sidebar-header {
