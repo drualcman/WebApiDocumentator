@@ -440,7 +440,7 @@ internal class IndexModel : PageModel
             --gray-color: #6c757d;
             --light-gray: #e9ecef;
             --border-color: #dee2e6;
-            --sidebar-width: 280px;
+            --sidebar-width: 25%;
             --sidebar-bg: #2b2d42;
             --sidebar-text: #f8f9fa;
             --sidebar-hover: #3a3e5a;
@@ -468,22 +468,45 @@ internal class IndexModel : PageModel
             margin: 0;
         }
 
+        .sidebar-toggle {
+            position: fixed;
+            right: 1rem;
+            top: 1rem;
+            z-index: 900;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transform: rotate(90deg);
+        }  
+
+            .sidebar-toggle.active {
+                transform: unset;
+            }
 
         #sidebar {
-            flex: 1;
             width: var(--sidebar-width);
             background-color: var(--sidebar-bg);
             color: var(--sidebar-text);
             height: 100vh;
-            position: sticky;
+            position: fixed;
+            right: -100%;
             top: 0;
             overflow-y: auto;
             transition: var(--transition);
-            z-index: 1000;
+            z-index: 10;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);  .
             scroll-behavior: smooth;
-            min-width: 20rem;
         }
+
+            #sidebar.active {
+                right: 0;
+            }
 
         .sidebar-header {
             padding: 1.5rem;
@@ -677,8 +700,8 @@ internal class IndexModel : PageModel
         }
 
         #content {
-            flex: 2;
-            padding: 2rem;
+            padding: 1rem;
+            flex: 1; 
         }
 
  
@@ -689,9 +712,9 @@ internal class IndexModel : PageModel
             border-left: 1px solid var(--border-color);
         } 
 
-        #examples {    
-            flex: 1;
-            padding: 2rem;
+        #examples {  
+            min-width: 30%; 
+            padding: 1rem;
             background-color: var(--example-bg);
             border-left: 1px solid var(--border-color);
             position: sticky;
@@ -942,38 +965,10 @@ internal class IndexModel : PageModel
         }
 
         @media (max-width: 768px) {
-            #sidebar {
-                position: fixed;
-                left: -100%;
-                top: 0;
-                height: 100vh;
-                z-index: 1000;
-            }
-
-                #sidebar.active {
-                    left: 0;
-                }
-
             #content {
+                min-width: 85%;
                 margin-left: 0;
                 padding: 1rem;
-            }
-
-            .sidebar-toggle {
-                display: block;
-                position: fixed;
-                left: 1rem;
-                top: 1rem;
-                z-index: 900;
-                background: var(--primary-color);
-                color: white;
-                border: none;
-                border-radius: 50%;
-                width: 40px;
-                height: 40px;
-                font-size: 1.2rem;
-                cursor: pointer;
-                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
             }
         }   
     

@@ -22,28 +22,6 @@
     @Html.Raw(Model.Style)
 </head>
 <body>
-    <button class="sidebar-toggle" id="sidebarToggle">
-        |||
-    </button>
-
-    <div id="sidebar">
-        <div class="sidebar-header">
-            <a href="/Docs">
-                <h3>@Model.Name</h3>
-            </a>
-        </div>
-
-        <div class="sidebar-search">
-            <input type="text" id="searchEndpoints" placeholder="Search endpoints...">
-        </div>
-
-        <div class="sidebar-title">
-            <span class="toggle-all" id="toggleAll">Expand All</span>
-        </div>
-
-        <partial name="EndpointNode" model="Model.Groups" view-data="ViewData" />
-    </div>
-
     <div id="content">
         @if(selected == null)
         {
@@ -345,6 +323,29 @@ var content = await response.Content.ReadAsStringAsync();</pre>
         </div>
     }
 
+
+    <button class="sidebar-toggle active" id="sidebarToggle">
+        |||
+    </button>
+
+    <div id="sidebar" class="active">
+        <div class="sidebar-header">
+            <a href="/@Model.DocsBaseUrl">
+                <h3>@Model.Name</h3>
+            </a>
+        </div>
+
+        <div class="sidebar-search">
+            <input type="text" id="searchEndpoints" placeholder="Search endpoints...">
+        </div>
+
+        <div class="sidebar-title">
+            <span class="toggle-all" id="toggleAll">Expand All</span>
+        </div>
+
+        <partial name="EndpointNode" model="Model.Groups" view-data="ViewData" />
+    </div>
+
     <script>
         // Auth related functions
         function initAuthFields() {
@@ -449,15 +450,16 @@ var content = await response.Content.ReadAsStringAsync();</pre>
             if (sidebarToggle) {
                 sidebarToggle.addEventListener('click', () => {
                     sidebar.classList.toggle('active');
+                    sidebarToggle.classList.toggle('active');
                 });
             }
 
             // Close sidebar when clicking outside on mobile
             document.addEventListener('click', (e) => {
-                if (window.innerWidth <= 768 &&
-                    !sidebar.contains(e.target) &&
+                if (!sidebar.contains(e.target) &&
                     e.target !== sidebarToggle) {
                     sidebar.classList.remove('active');
+                    sidebarToggle.classList.remove('active');
                 }
             });
         }
