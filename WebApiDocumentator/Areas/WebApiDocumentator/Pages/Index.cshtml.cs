@@ -184,8 +184,8 @@ internal class IndexModel : PageModel
 
         // Añadir parámetros de consulta
         var queryParams = SelectedEndpoint.Parameters
-            .Where(p => p.Source == "Query" && TestInput.Parameters.ContainsKey(p.Name))
-            .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(TestInput.Parameters[p.Name] ?? "")}")
+            .Where(p => p.Source == "Query" && TestInput.Parameters.ContainsKey(p.Name) && !string.IsNullOrEmpty(TestInput.Parameters[p.Name]))
+            .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(TestInput.Parameters[p.Name])}")
             .ToList();
 
         if(queryParams.Any())
