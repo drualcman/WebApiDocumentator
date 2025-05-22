@@ -714,6 +714,7 @@ internal class IndexModel : PageModel
 
         #examples {  
             min-width: 30%; 
+            max-width: 35%; 
             padding: 1rem;
             background-color: var(--example-bg);
             border-left: 1px solid var(--border-color);
