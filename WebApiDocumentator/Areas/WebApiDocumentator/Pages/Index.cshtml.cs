@@ -329,7 +329,7 @@ internal class IndexModel : PageModel
     // Nuevo método para generar la URL de ejemplo con parámetros de ruta y consulta
     private string GenerateExampleRequestUrl(ApiEndpointInfo endpoint)
     {
-        var generator = new JsonSchemaGenerator(new Dictionary<string, string>());
+        var generator = new JsonSchemaGenerator();
         var url = endpoint.Route;
 
         // Reemplazar parámetros de ruta
@@ -383,7 +383,7 @@ internal class IndexModel : PageModel
         var bodyParam = endpoint.Parameters.FirstOrDefault(p => p.IsFromBody);
         if(bodyParam != null && bodyParam.Schema != null)
         {
-            var generator = new JsonSchemaGenerator(new Dictionary<string, string>());
+            var generator = new JsonSchemaGenerator();
             return generator.GetExampleAsJsonString(bodyParam.Schema);
         }
         return null;
@@ -396,7 +396,7 @@ internal class IndexModel : PageModel
 
     public string? GenerateFlatSchema(Dictionary<string, object>? schema)
     {
-        JsonSchemaGenerator generator = new JsonSchemaGenerator(new());
+        JsonSchemaGenerator generator = new JsonSchemaGenerator();
         return generator.GetExampleAsJsonString(schema);
     }
 

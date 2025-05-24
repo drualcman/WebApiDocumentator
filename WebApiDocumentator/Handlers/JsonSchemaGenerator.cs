@@ -4,6 +4,8 @@ internal class JsonSchemaGenerator
 {
     private readonly Dictionary<string, string> _xmlDocs;
 
+    public JsonSchemaGenerator() : this(new Dictionary<string, string>()) { }
+
     public JsonSchemaGenerator(Dictionary<string, string> xmlDocs)
     {
         _xmlDocs = xmlDocs;
@@ -11,113 +13,87 @@ internal class JsonSchemaGenerator
 
     public string GetExampleAsJsonString(Dictionary<string, object>? schema)
     {
-        if(schema == null || !schema.ContainsKey("example"))
-            return "";
-
-        var example = schema["example"];
-        return SerializeToJson(example, true).Trim('"');
+        string result = "";
+        if(schema != null && schema.ContainsKey("example"))
+        {
+            var example = schema["example"];
+            result = SerializeToJson(example, true).Trim('"');
+        }
+        return result;
     }
 
     public Dictionary<string, object>? GenerateJsonSchema(Type? type, HashSet<Type>? processedTypes = null, bool includeExample = true)
     {
-        if(type == null)
-            return null;
-
-        processedTypes ??= new HashSet<Type>();
-
-        // Manejar Task<T> y Task
-        if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
+        if(type != null)
         {
-            var innerType = type.GetGenericArguments()[0];
-            return GenerateJsonSchema(innerType, processedTypes, includeExample);
-        }
-        if(type == typeof(Task))
-        {
-            return null;
-        }
-
-        var schema = new Dictionary<string, object>();
-
-        // Manejar tipos básicos
-        if(type.IsPrimitive || type == typeof(string))
-        {
-            schema["type"] = GetJsonType(type);
-            if(includeExample)
+            processedTypes ??= new HashSet<Type>();
+            if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
             {
-                schema["example"] = GetExampleValue(type);
+                var innerType = type.GetGenericArguments()[0];
+                return GenerateJsonSchema(innerType, processedTypes, includeExample);
             }
-            return schema;
-        }
-
-        if(processedTypes.Contains(type))
-        {
-            schema["type"] = "object";
-            schema[" Shots"] = $"#/components/schemas/{type.Name}";
-            return schema;
-        }
-
-        processedTypes.Add(type);
-
-        // Manejar arrays
-        if(type.IsArray)
-        {
-            return GenerateCollectionSchema(type, type.GetElementType(), processedTypes, includeExample);
-        }
-
-        // Manejar List<>
-        if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
-        {
-            return GenerateCollectionSchema(type, type.GetGenericArguments()[0], processedTypes, includeExample);
-        }
-
-        // Manejar objetos complejos
-        schema["type"] = "object";
-        schema["properties"] = new Dictionary<string, object>();
-        var requiredProperties = new List<string>();
-
-        foreach(var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-        {
-            var propSchema = GenerateJsonSchema(prop.PropertyType, processedTypes, includeExample);
-            if(propSchema != null)
+            if(type != typeof(Task))
             {
-                var propDict = new Dictionary<string, object>(propSchema);
-                var description = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, prop);
-                if(!string.IsNullOrEmpty(description))
+                var schema = new Dictionary<string, object>();
+                if(type.IsPrimitive || type == typeof(string))
                 {
-                    propDict["description"] = description;
+                    schema["type"] = GetJsonType(type);
+                    if(includeExample)
+                        schema["example"] = GetExampleValue(type);
+                    return schema;
                 }
-                ((Dictionary<string, object>)schema["properties"])[ToCamelCase(prop.Name)] = propDict;
+                if(processedTypes.Contains(type))
+                {
+                    schema["type"] = "object";
+                    schema[" Shots"] = $"#/components/schemas/{type.Name}";
+                    return schema;
+                }
+                processedTypes.Add(type);
+                if(type.IsArray)
+                    return GenerateCollectionSchema(type, type.GetElementType(), processedTypes, includeExample);
+                if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
+                    return GenerateCollectionSchema(type, type.GetGenericArguments()[0], processedTypes, includeExample);
+                schema["type"] = "object";
+                schema["properties"] = new Dictionary<string, object>();
+                var requiredProperties = new List<string>();
+                foreach(var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                {
+                    var propSchema = GenerateJsonSchema(prop.PropertyType, processedTypes, includeExample);
+                    if(propSchema != null)
+                    {
+                        var propDict = new Dictionary<string, object>(propSchema);
+                        var description = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, prop);
+                        if(!string.IsNullOrEmpty(description))
+                            propDict["description"] = description;
+                        ((Dictionary<string, object>)schema["properties"])[ToCamelCase(prop.Name)] = propDict;
 
-                if(prop.GetCustomAttribute<RequiredAttribute>() != null)
-                {
-                    requiredProperties.Add(ToCamelCase(prop.Name));
+                        if(prop.GetCustomAttribute<RequiredAttribute>() != null)
+                            requiredProperties.Add(ToCamelCase(prop.Name));
+                    }
                 }
+                if(requiredProperties.Any())
+                    schema["required"] = requiredProperties;
+                if(includeExample)
+                {
+                    object? exampleInstance = GenerateExampleForType(type, 1);
+                    if(exampleInstance != null && exampleInstance is not JsonElement)
+                    {
+                        try
+                        {
+                            JsonElement jsonElement = JsonSerializer.Deserialize<JsonElement>(SerializeToJson(exampleInstance));
+                            schema["example"] = jsonElement;
+                        }
+                        catch
+                        {
+                            schema["example"] = null;
+                        }
+                    }
+                }
+                processedTypes.Remove(type);
+                return schema;
             }
         }
-
-        if(requiredProperties.Any())
-        {
-            schema["required"] = requiredProperties;
-        }
-
-        if(includeExample)
-        {
-            object? exampleInstance = GenerateExampleForType(type, 1);
-            if(exampleInstance != null && exampleInstance is not JsonElement)
-            {
-                try
-                {
-                    JsonElement jsonElement = JsonSerializer.Deserialize<JsonElement>(SerializeToJson(exampleInstance));
-                    schema["example"] = jsonElement;
-                }
-                catch
-                {
-                    schema["example"] = null;
-                }
-            }
-        }
-        processedTypes.Remove(type);
-        return schema;
+        return null;
     }
 
     private Dictionary<string, object> GenerateCollectionSchema(Type type, Type elementType, HashSet<Type> processedTypes, bool includeExample)
@@ -129,10 +105,7 @@ internal class JsonSchemaGenerator
         };
 
         if(includeExample)
-        {
             schema["example"] = new[] { GenerateExampleForType(elementType, 1) };
-        }
-
         processedTypes.Remove(type);
         return schema;
     }
@@ -140,7 +113,6 @@ internal class JsonSchemaGenerator
     private object GetExampleValue(Type type, bool useRepresentativeValues = false)
     {
         Type underlyingType = Nullable.GetUnderlyingType(type) ?? type;
-
         if(underlyingType == typeof(string))
             return useRepresentativeValues ? "string" : "";
         if(underlyingType == typeof(int))
@@ -163,63 +135,53 @@ internal class JsonSchemaGenerator
             return useRepresentativeValues ? Guid.NewGuid().ToString() : Guid.NewGuid().ToString();
         if(underlyingType.IsEnum)
             return Enum.GetValues(underlyingType).GetValue(0)?.ToString() ?? "UNKNOWN";
-
         return null;
     }
 
     private object GenerateExampleForType(Type type, int depth = 0)
     {
         const int MAX_DEPTH = 4;
-        if(depth > MAX_DEPTH)
+        if(depth <= MAX_DEPTH)
         {
-            return "max-depth";
-        }
-
-        Type underlyingType = Nullable.GetUnderlyingType(type) ?? type;
-
-        // Tipos básicos
-        if(underlyingType.IsPrimitive || underlyingType == typeof(string) || underlyingType == typeof(DateTime) ||
-            underlyingType == typeof(DateOnly) || underlyingType == typeof(Guid) || underlyingType.IsEnum)
-        {
-            return GetExampleValue(underlyingType, true);
-        }
-
-        // Manejar colecciones
-        if(underlyingType.IsArray)
-        {
-            return GenerateCollectionExample(underlyingType, underlyingType.GetElementType(), depth);
-        }
-        if(underlyingType.IsGenericType)
-        {
-            var genericTypeDef = underlyingType.GetGenericTypeDefinition();
-            if(genericTypeDef == typeof(IEnumerable<>) ||
-                genericTypeDef == typeof(IList<>) ||
-                genericTypeDef == typeof(List<>))
+            Type underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+            if(IsPrimitiveOrBasic(underlyingType))
+                return GetExampleValue(underlyingType, true);
+            if(underlyingType.IsArray)
+                return GenerateCollectionExample(underlyingType, underlyingType.GetElementType(), depth);
+            if(underlyingType.IsGenericType)
             {
-                return GenerateCollectionExample(underlyingType, underlyingType.GetGenericArguments()[0], depth);
-            }
-        }
-
-        // Generar objeto
-        var example = new Dictionary<string, object>();
-        foreach(var prop in underlyingType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-        {
-            if(prop.CanRead)
-            {
-                try
+                var genericTypeDef = underlyingType.GetGenericTypeDefinition();
+                if(genericTypeDef == typeof(IEnumerable<>) ||
+                    genericTypeDef == typeof(IList<>) ||
+                    genericTypeDef == typeof(List<>))
                 {
-                    var propValue = GenerateExampleForType(prop.PropertyType, depth + 1);
-                    example[GetPropertyName(prop)] = propValue ?? null;
-                }
-                catch
-                {
-                    example[GetPropertyName(prop)] = null;
+                    return GenerateCollectionExample(underlyingType, underlyingType.GetGenericArguments()[0], depth);
                 }
             }
+            var example = new Dictionary<string, object>();
+            foreach(var prop in underlyingType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if(prop.CanRead)
+                {
+                    try
+                    {
+                        var propValue = GenerateExampleForType(prop.PropertyType, depth + 1);
+                        example[GetPropertyName(prop)] = propValue ?? null;
+                    }
+                    catch
+                    {
+                        example[GetPropertyName(prop)] = null;
+                    }
+                }
+            }
+            return example.Count == 0 ? new object() : example;
         }
-        return example.Count == 0 ? new object() : example;
+
+        return "max-depth";
     }
 
+    private bool IsPrimitiveOrBasic(Type underlyingType) => underlyingType.IsPrimitive || underlyingType == typeof(string) || underlyingType == typeof(DateTime) ||
+                underlyingType == typeof(DateOnly) || underlyingType == typeof(Guid) || underlyingType.IsEnum;
     private object GenerateCollectionExample(Type type, Type elementType, int depth) => new[] { GenerateExampleForType(elementType, depth + 1) };
 
     private string SerializeToJson(object value, bool writeIndented = false) => JsonSerializer.Serialize(value, new JsonSerializerOptions

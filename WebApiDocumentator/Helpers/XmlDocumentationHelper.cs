@@ -3,7 +3,7 @@ internal static class XmlDocumentationHelper
 {
     public static string? GetXmlSummary(Dictionary<string, string> xmlDocs, MemberInfo? member)
     {
-        if(member == null)
+        if(member == null || (!xmlDocs?.Any() ?? true))
             return null;
 
         var memberId = GetXmlMemberName(member);
@@ -12,7 +12,7 @@ internal static class XmlDocumentationHelper
 
     public static string? GetXmlParamSummary(Dictionary<string, string> xmlDocs, string methodXmlKey, string? paramName)
     {
-        if(string.IsNullOrWhiteSpace(methodXmlKey) || string.IsNullOrWhiteSpace(paramName))
+        if(string.IsNullOrWhiteSpace(methodXmlKey) || string.IsNullOrWhiteSpace(paramName) || (!xmlDocs?.Any() ?? true))
             return null;
 
         var paramKey = $"{methodXmlKey}#{paramName}";
@@ -48,12 +48,16 @@ internal static class XmlDocumentationHelper
 
     public static string? GetXmlReturns(Dictionary<string, string> xmlDocs, MethodInfo method)
     {
+        if(!xmlDocs?.Any() ?? true)
+            return null;
         var key = GetXmlMemberName(method);
         return xmlDocs.TryGetValue($"{key}#returns", out var value) ? value : null;
     }
 
     public static string? GetXmlRemarks(Dictionary<string, string> xmlDocs, MethodInfo method)
     {
+        if(!xmlDocs?.Any() ?? true)
+            return null;
         var key = GetXmlMemberName(method);
         return xmlDocs.TryGetValue($"{key}#remarks", out var value) ? value : null;
     }
