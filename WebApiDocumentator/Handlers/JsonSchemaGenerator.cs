@@ -130,8 +130,27 @@ internal class JsonSchemaGenerator
 
         if(includeExample)
         {
-            schema["example"] = GenerateExampleForType(type, processedTypes);
+            object? exampleInstance = GenerateExampleForType(type, processedTypes);
+            if(exampleInstance != null && exampleInstance is not JsonElement)
+            {
+                try
+                {
+                    JsonElement jsonElement = JsonSerializer.Deserialize<JsonElement>(
+                        JsonSerializer.Serialize(exampleInstance, new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                        })
+                    );
+
+                    schema["example"] = jsonElement;
+                }
+                catch
+                {
+                    schema["example"] = null;
+                }
+            }
         }
+
 
         processedTypes.Remove(type);
 
@@ -158,43 +177,45 @@ internal class JsonSchemaGenerator
             return DateTime.Now.ToString("yyyy-MM-dd");
         return null;
     }
-
-    private Dictionary<string, object> GenerateExampleForType(Type type, HashSet<Type> processedTypes)
+    private object? GenerateExampleForType(Type type, HashSet<Type> processedTypes)
     {
-        if(!type.IsPrimitive && type != typeof(string))
+        try
         {
-            var example = new Dictionary<string, object>();
+            // Crear instancia con valores por defecto
+            object? instance = Activator.CreateInstance(type);
+            if(instance == null)
+                return null;
 
-            foreach(var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            // Para cada propiedad pública, intentar asignar un valor de ejemplo si está vacía
+            foreach(PropertyInfo prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
-                var propType = prop.PropertyType;
-                var propName = ToCamelCase(prop.Name);
+                if(prop.CanWrite)
+                {
+                    object? defaultValue = GetExampleValue(prop.PropertyType);
 
-                if(propType.IsPrimitive || propType == typeof(string))
-                {
-                    example[propName] = GetExampleValue(propType);
-                }
-                else if(propType == typeof(DateOnly) || propType == typeof(DateTime))
-                {
-                    example[propName] = DateTime.Now.ToString("yyyy-MM-dd");
-                }
-                else if(propType.IsClass)
-                {
-                    // Para propiedades complejas, generar un ejemplo simple
-                    var complexExample = new Dictionary<string, object>();
-                    foreach(var subProp in propType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                    if(defaultValue == null && prop.PropertyType.IsClass && prop.PropertyType != typeof(string))
                     {
-                        complexExample[ToCamelCase(subProp.Name)] = GetExampleValue(subProp.PropertyType);
+                        // Evitar ciclos infinitos
+                        if(processedTypes.Contains(prop.PropertyType))
+                            continue;
+
+                        processedTypes.Add(prop.PropertyType);
+                        defaultValue = GenerateExampleForType(prop.PropertyType, processedTypes);
+                        processedTypes.Remove(prop.PropertyType);
                     }
-                    example[propName] = complexExample;
+
+                    prop.SetValue(instance, defaultValue);
                 }
             }
 
-            return example;
+            return instance;
         }
-
-        return null;
+        catch
+        {
+            return null;
+        }
     }
+
 
     private string ToCamelCase(string input)
     {
@@ -216,4 +237,5 @@ internal class JsonSchemaGenerator
             return "string";
         return "object";
     }
+
 }
