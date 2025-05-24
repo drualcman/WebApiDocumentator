@@ -1,4 +1,6 @@
-﻿namespace WebApiDocumentator.Handlers;
+﻿using System.Text.Json.Serialization;
+
+namespace WebApiDocumentator.Handlers;
 
 internal class JsonSchemaGenerator
 {
@@ -75,7 +77,7 @@ internal class JsonSchemaGenerator
 
             if(includeExample)
             {
-                schema["example"] = new[] { GenerateExampleForType(elementType, processedTypes) };
+                schema["example"] = new[] { GenerateExampleForType(elementType, 1) };
             }
 
             processedTypes.Remove(type);
@@ -91,7 +93,7 @@ internal class JsonSchemaGenerator
 
             if(includeExample)
             {
-                schema["example"] = new[] { GenerateExampleForType(elementType, processedTypes) };
+                schema["example"] = new[] { GenerateExampleForType(elementType, 1) };
             }
 
             processedTypes.Remove(type);
@@ -130,7 +132,7 @@ internal class JsonSchemaGenerator
 
         if(includeExample)
         {
-            object? exampleInstance = GenerateExampleForType(type, processedTypes);
+            object? exampleInstance = GenerateExampleForType(type, 1);
             if(exampleInstance != null && exampleInstance is not JsonElement)
             {
                 try
@@ -183,62 +185,94 @@ internal class JsonSchemaGenerator
         return null;
     }
 
-    private object? GenerateExampleForType(Type type, HashSet<Type> processedTypes)
+    private object GenerateExampleForType(Type type, int depth = 0)
     {
-        try
+        const int MAX_DEPTH = 4;
+        if(depth > MAX_DEPTH)
         {
-            // Manejar tipos Nullable<T>
-            Type underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+            return "max-depth";
+        }
 
-            // Crear instancia con valores por defecto
-            object? instance = Activator.CreateInstance(underlyingType);
-            if(instance == null)
-                return null;
+        // Manejar tipos Nullable
+        Type underlyingType = Nullable.GetUnderlyingType(type) ?? type;
 
-            // Para cada propiedad pública, intentar asignar un valor de ejemplo si está vacía
-            foreach(PropertyInfo prop in underlyingType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        // Tipos básicos
+        if(underlyingType == typeof(string))
+            return "string";
+        if(underlyingType == typeof(int))
+            return 123;
+        if(underlyingType == typeof(long))
+            return 123456L;
+        if(underlyingType == typeof(double))
+            return 123.45;
+        if(underlyingType == typeof(float))
+            return 123.45f;
+        if(underlyingType == typeof(decimal))
+            return 123.45m;
+        if(underlyingType == typeof(bool))
+            return true;
+        if(underlyingType == typeof(DateTime))
+            return DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+        if(underlyingType == typeof(DateOnly))
+            return DateOnly.FromDateTime(DateTime.Now).ToString("yyyy-MM-dd");
+        if(underlyingType == typeof(Guid))
+            return Guid.NewGuid().ToString();
+        if(underlyingType.IsEnum)
+            return Enum.GetValues(underlyingType).GetValue(0)?.ToString() ?? "UNKNOWN";
+
+        // Manejar colecciones
+        if(underlyingType.IsGenericType)
+        {
+            var genericTypeDef = underlyingType.GetGenericTypeDefinition();
+            if(genericTypeDef == typeof(IEnumerable<>) ||
+                genericTypeDef == typeof(IList<>) ||
+                genericTypeDef == typeof(List<>))
             {
-                if(prop.CanWrite)
+                var elementType = underlyingType.GetGenericArguments()[0];
+                return new[] { GenerateExampleForType(elementType, depth + 1) };
+            }
+        }
+
+        // Manejar arrays
+        if(underlyingType.IsArray)
+        {
+            var elementType = underlyingType.GetElementType();
+            return new[] { GenerateExampleForType(elementType, depth + 1) };
+        }
+
+        // Generar objeto (sin verificación de circularidad)
+        var example = new Dictionary<string, object>();
+        foreach(var prop in underlyingType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if(prop.CanRead)
+            {
+                try
                 {
-                    object? defaultValue = GetExampleValue(prop.PropertyType);
-
-                    if(defaultValue == null && prop.PropertyType.IsClass && prop.PropertyType != typeof(string))
-                    {
-                        // Evitar ciclos infinitos
-                        if(processedTypes.Contains(prop.PropertyType))
-                            continue;
-
-                        processedTypes.Add(prop.PropertyType);
-                        defaultValue = GenerateExampleForType(prop.PropertyType, processedTypes);
-                        processedTypes.Remove(prop.PropertyType);
-                    }
-
-                    prop.SetValue(instance, defaultValue);
+                    var propValue = GenerateExampleForType(prop.PropertyType, depth + 1);
+                    example[GetPropertyName(prop)] = propValue ?? null; // Cambio aquí
+                }
+                catch
+                {
+                    example[GetPropertyName(prop)] = null; // Cambio aquí
                 }
             }
+        }
 
-            return instance;
-        }
-        catch(Exception ex)
-        {
-            string s = ex.Message;
-            if(!s.Contains("No parameterless constructor") &&
-               !s.Contains("Cannot create an instance of an interface") &&
-               !s.Contains("Type is not supported") &&
-               !s.Contains("Parameter count mismatch") &&
-               !s.Contains("Uninitialized Strings cannot be created")
-               )
-            {
-                string k = s;
-            }
-            if(s.Contains("DuAccountRegistrationCustomerDataResponse"))
-            {
-                string kk = s;
-            }
-            return null;
-        }
+        return example.Count == 0 ? new object() : example;
     }
 
+    private string GetPropertyName(PropertyInfo prop)
+    {
+        // 1. Buscar JsonPropertyName attribute primero
+        var jsonProperty = prop.GetCustomAttribute<JsonPropertyNameAttribute>();
+        if(jsonProperty != null)
+        {
+            return jsonProperty.Name;
+        }
+
+        // 2. Si no existe, usar camelCase como fallback
+        return ToCamelCase(prop.Name);
+    }
 
     private string ToCamelCase(string input)
     {
