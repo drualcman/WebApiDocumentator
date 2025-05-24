@@ -159,35 +159,44 @@ internal class JsonSchemaGenerator
 
     private object GetExampleValue(Type type)
     {
-        if(type == typeof(string))
-            return "string";
-        if(type == typeof(int))
+        Type underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+
+        if(underlyingType == typeof(string))
+            return "";
+        if(underlyingType == typeof(int))
             return 0;
-        if(type == typeof(long))
+        if(underlyingType == typeof(long))
             return 0L;
-        if(type == typeof(double))
+        if(underlyingType == typeof(double))
             return 0.0;
-        if(type == typeof(float))
+        if(underlyingType == typeof(float))
             return 0.0f;
-        if(type == typeof(decimal))
+        if(underlyingType == typeof(decimal))
             return 0.0m;
-        if(type == typeof(bool))
+        if(underlyingType == typeof(bool))
             return false;
-        if(type == typeof(DateOnly) || type == typeof(DateTime))
-            return DateTime.Now.ToString("yyyy-MM-dd");
+        if(underlyingType == typeof(DateOnly))
+            return DateOnly.FromDateTime(DateTime.Now);
+        if(underlyingType == typeof(DateTime))
+            return DateTime.UtcNow;
+
         return null;
     }
+
     private object? GenerateExampleForType(Type type, HashSet<Type> processedTypes)
     {
         try
         {
+            // Manejar tipos Nullable<T>
+            Type underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+
             // Crear instancia con valores por defecto
-            object? instance = Activator.CreateInstance(type);
+            object? instance = Activator.CreateInstance(underlyingType);
             if(instance == null)
                 return null;
 
             // Para cada propiedad pública, intentar asignar un valor de ejemplo si está vacía
-            foreach(PropertyInfo prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            foreach(PropertyInfo prop in underlyingType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
                 if(prop.CanWrite)
                 {
@@ -210,8 +219,22 @@ internal class JsonSchemaGenerator
 
             return instance;
         }
-        catch
+        catch(Exception ex)
         {
+            string s = ex.Message;
+            if(!s.Contains("No parameterless constructor") &&
+               !s.Contains("Cannot create an instance of an interface") &&
+               !s.Contains("Type is not supported") &&
+               !s.Contains("Parameter count mismatch") &&
+               !s.Contains("Uninitialized Strings cannot be created")
+               )
+            {
+                string k = s;
+            }
+            if(s.Contains("DuAccountRegistrationCustomerDataResponse"))
+            {
+                string kk = s;
+            }
             return null;
         }
     }
