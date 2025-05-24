@@ -1,6 +1,4 @@
-﻿using System.Text.Json.Serialization;
-
-namespace WebApiDocumentator.Handlers;
+﻿namespace WebApiDocumentator.Handlers;
 
 internal class JsonSchemaGenerator
 {
@@ -14,17 +12,10 @@ internal class JsonSchemaGenerator
     public string GetExampleAsJsonString(Dictionary<string, object>? schema)
     {
         if(schema == null || !schema.ContainsKey("example"))
-            return ""; // O algún valor por defecto
+            return "";
 
-        // Extraer el ejemplo del esquema
         var example = schema["example"];
-
-        // Serializar a JSON con formato bonito
-        return JsonSerializer.Serialize(example, new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        }).Trim('"');
+        return SerializeToJson(example, true).Trim('"');
     }
 
     public Dictionary<string, object>? GenerateJsonSchema(Type? type, HashSet<Type>? processedTypes = null, bool includeExample = true)
@@ -42,7 +33,6 @@ internal class JsonSchemaGenerator
         }
         if(type == typeof(Task))
         {
-            // Task sin valor de retorno (void)
             return null;
         }
 
@@ -62,7 +52,7 @@ internal class JsonSchemaGenerator
         if(processedTypes.Contains(type))
         {
             schema["type"] = "object";
-            schema["$ref"] = $"#/components/schemas/{type.Name}";
+            schema[" Shots"] = $"#/components/schemas/{type.Name}";
             return schema;
         }
 
@@ -71,33 +61,13 @@ internal class JsonSchemaGenerator
         // Manejar arrays
         if(type.IsArray)
         {
-            schema["type"] = "array";
-            var elementType = type.GetElementType();
-            schema["items"] = GenerateJsonSchema(elementType, processedTypes, includeExample) ?? new Dictionary<string, object>();
-
-            if(includeExample)
-            {
-                schema["example"] = new[] { GenerateExampleForType(elementType, 1) };
-            }
-
-            processedTypes.Remove(type);
-            return schema;
+            return GenerateCollectionSchema(type, type.GetElementType(), processedTypes, includeExample);
         }
 
         // Manejar List<>
         if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
         {
-            schema["type"] = "array";
-            var elementType = type.GetGenericArguments()[0];
-            schema["items"] = GenerateJsonSchema(elementType, processedTypes, includeExample) ?? new Dictionary<string, object>();
-
-            if(includeExample)
-            {
-                schema["example"] = new[] { GenerateExampleForType(elementType, 1) };
-            }
-
-            processedTypes.Remove(type);
-            return schema;
+            return GenerateCollectionSchema(type, type.GetGenericArguments()[0], processedTypes, includeExample);
         }
 
         // Manejar objetos complejos
@@ -137,13 +107,7 @@ internal class JsonSchemaGenerator
             {
                 try
                 {
-                    JsonElement jsonElement = JsonSerializer.Deserialize<JsonElement>(
-                        JsonSerializer.Serialize(exampleInstance, new JsonSerializerOptions
-                        {
-                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                        })
-                    );
-
+                    JsonElement jsonElement = JsonSerializer.Deserialize<JsonElement>(SerializeToJson(exampleInstance));
                     schema["example"] = jsonElement;
                 }
                 catch
@@ -152,35 +116,53 @@ internal class JsonSchemaGenerator
                 }
             }
         }
-
-
         processedTypes.Remove(type);
-
         return schema;
     }
 
-    private object GetExampleValue(Type type)
+    private Dictionary<string, object> GenerateCollectionSchema(Type type, Type elementType, HashSet<Type> processedTypes, bool includeExample)
+    {
+        var schema = new Dictionary<string, object>
+        {
+            ["type"] = "array",
+            ["items"] = GenerateJsonSchema(elementType, processedTypes, includeExample) ?? new Dictionary<string, object>()
+        };
+
+        if(includeExample)
+        {
+            schema["example"] = new[] { GenerateExampleForType(elementType, 1) };
+        }
+
+        processedTypes.Remove(type);
+        return schema;
+    }
+
+    private object GetExampleValue(Type type, bool useRepresentativeValues = false)
     {
         Type underlyingType = Nullable.GetUnderlyingType(type) ?? type;
 
         if(underlyingType == typeof(string))
-            return "";
+            return useRepresentativeValues ? "string" : "";
         if(underlyingType == typeof(int))
-            return 0;
+            return useRepresentativeValues ? 123 : 0;
         if(underlyingType == typeof(long))
-            return 0L;
+            return useRepresentativeValues ? 123456L : 0L;
         if(underlyingType == typeof(double))
-            return 0.0;
+            return useRepresentativeValues ? 123.45 : 0.0;
         if(underlyingType == typeof(float))
-            return 0.0f;
+            return useRepresentativeValues ? 123.45f : 0.0f;
         if(underlyingType == typeof(decimal))
-            return 0.0m;
+            return useRepresentativeValues ? 123.45m : 0.0m;
         if(underlyingType == typeof(bool))
-            return false;
-        if(underlyingType == typeof(DateOnly))
-            return DateOnly.FromDateTime(DateTime.Now);
+            return useRepresentativeValues ? true : false;
         if(underlyingType == typeof(DateTime))
-            return DateTime.UtcNow;
+            return useRepresentativeValues ? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") : DateTime.UtcNow;
+        if(underlyingType == typeof(DateOnly))
+            return useRepresentativeValues ? DateOnly.FromDateTime(DateTime.Now).ToString("yyyy-MM-dd") : DateOnly.FromDateTime(DateTime.Now);
+        if(underlyingType == typeof(Guid))
+            return useRepresentativeValues ? Guid.NewGuid().ToString() : Guid.NewGuid().ToString();
+        if(underlyingType.IsEnum)
+            return Enum.GetValues(underlyingType).GetValue(0)?.ToString() ?? "UNKNOWN";
 
         return null;
     }
@@ -193,34 +175,20 @@ internal class JsonSchemaGenerator
             return "max-depth";
         }
 
-        // Manejar tipos Nullable
         Type underlyingType = Nullable.GetUnderlyingType(type) ?? type;
 
         // Tipos básicos
-        if(underlyingType == typeof(string))
-            return "string";
-        if(underlyingType == typeof(int))
-            return 123;
-        if(underlyingType == typeof(long))
-            return 123456L;
-        if(underlyingType == typeof(double))
-            return 123.45;
-        if(underlyingType == typeof(float))
-            return 123.45f;
-        if(underlyingType == typeof(decimal))
-            return 123.45m;
-        if(underlyingType == typeof(bool))
-            return true;
-        if(underlyingType == typeof(DateTime))
-            return DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-        if(underlyingType == typeof(DateOnly))
-            return DateOnly.FromDateTime(DateTime.Now).ToString("yyyy-MM-dd");
-        if(underlyingType == typeof(Guid))
-            return Guid.NewGuid().ToString();
-        if(underlyingType.IsEnum)
-            return Enum.GetValues(underlyingType).GetValue(0)?.ToString() ?? "UNKNOWN";
+        if(underlyingType.IsPrimitive || underlyingType == typeof(string) || underlyingType == typeof(DateTime) ||
+            underlyingType == typeof(DateOnly) || underlyingType == typeof(Guid) || underlyingType.IsEnum)
+        {
+            return GetExampleValue(underlyingType, true);
+        }
 
         // Manejar colecciones
+        if(underlyingType.IsArray)
+        {
+            return GenerateCollectionExample(underlyingType, underlyingType.GetElementType(), depth);
+        }
         if(underlyingType.IsGenericType)
         {
             var genericTypeDef = underlyingType.GetGenericTypeDefinition();
@@ -228,19 +196,11 @@ internal class JsonSchemaGenerator
                 genericTypeDef == typeof(IList<>) ||
                 genericTypeDef == typeof(List<>))
             {
-                var elementType = underlyingType.GetGenericArguments()[0];
-                return new[] { GenerateExampleForType(elementType, depth + 1) };
+                return GenerateCollectionExample(underlyingType, underlyingType.GetGenericArguments()[0], depth);
             }
         }
 
-        // Manejar arrays
-        if(underlyingType.IsArray)
-        {
-            var elementType = underlyingType.GetElementType();
-            return new[] { GenerateExampleForType(elementType, depth + 1) };
-        }
-
-        // Generar objeto (sin verificación de circularidad)
+        // Generar objeto
         var example = new Dictionary<string, object>();
         foreach(var prop in underlyingType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
@@ -249,28 +209,32 @@ internal class JsonSchemaGenerator
                 try
                 {
                     var propValue = GenerateExampleForType(prop.PropertyType, depth + 1);
-                    example[GetPropertyName(prop)] = propValue ?? null; // Cambio aquí
+                    example[GetPropertyName(prop)] = propValue ?? null;
                 }
                 catch
                 {
-                    example[GetPropertyName(prop)] = null; // Cambio aquí
+                    example[GetPropertyName(prop)] = null;
                 }
             }
         }
-
         return example.Count == 0 ? new object() : example;
     }
 
+    private object GenerateCollectionExample(Type type, Type elementType, int depth) => new[] { GenerateExampleForType(elementType, depth + 1) };
+
+    private string SerializeToJson(object value, bool writeIndented = false) => JsonSerializer.Serialize(value, new JsonSerializerOptions
+    {
+        WriteIndented = writeIndented,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    });
+
     private string GetPropertyName(PropertyInfo prop)
     {
-        // 1. Buscar JsonPropertyName attribute primero
         var jsonProperty = prop.GetCustomAttribute<JsonPropertyNameAttribute>();
         if(jsonProperty != null)
         {
             return jsonProperty.Name;
         }
-
-        // 2. Si no existe, usar camelCase como fallback
         return ToCamelCase(prop.Name);
     }
 
@@ -278,7 +242,6 @@ internal class JsonSchemaGenerator
     {
         if(string.IsNullOrEmpty(input) || char.IsLower(input[0]))
             return input;
-
         return char.ToLowerInvariant(input[0]) + input.Substring(1);
     }
 
@@ -294,5 +257,4 @@ internal class JsonSchemaGenerator
             return "string";
         return "object";
     }
-
 }
