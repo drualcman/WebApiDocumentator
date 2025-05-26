@@ -1,10 +1,8 @@
-﻿using Microsoft.AspNetCore.Builder;
-
-namespace Microsoft.Extensions.DependencyInjection;
+﻿namespace Microsoft.Extensions.DependencyInjection;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddMyApiDocs(this IServiceCollection services,
+    public static IServiceCollection AddWebApiDocumentator(this IServiceCollection services,
         Action<DocumentatorOptions> configure)
     {
         DocumentatorOptions customOptions = new();
@@ -36,7 +34,7 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IApplicationBuilder UseWebApiDocumentatorUi(this IApplicationBuilder app)
+    public static IApplicationBuilder UseWebApiDocumentator(this IApplicationBuilder app)
     {
         app.UseSession();
         app.UseEndpoints(endpoints =>
@@ -46,7 +44,7 @@ public static class ServiceCollectionExtensions
         return app;
     }
 
-    public static WebApplication UseWebApiDocumentatorUi(this WebApplication app)
+    public static WebApplication UseWebApiDocumentator(this WebApplication app)
     {
         app.UseSession();
         app.MapRazorPages();

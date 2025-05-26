@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers()
     .AddApplicationPart(typeof(WebApiDocumentator.ApiDemo.TestController).Assembly); // Forzar descubrimiento del ensamblado
 builder.Services.AddOpenApi();
-builder.Services.AddMyApiDocs(options =>
+builder.Services.AddWebApiDocumentator(options =>
 {
     options.ApiName = "Test Api";
     options.Version = "v1";
@@ -26,7 +26,7 @@ if(app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.MapControllers();
-app.UseWebApiDocumentatorUi();
+app.UseWebApiDocumentator();
 
 
 var summaries = new[]
