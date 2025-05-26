@@ -1026,6 +1026,36 @@ internal class IndexModel : PageModel
         .copy-btn.copied {
             background-color: var(--success-color);
         }
+        .doc-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .doc-tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .doc-tab:hover {
+            color: var(--primary-color);
+        }
+
+        .doc-tab.active {
+            border-bottom-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .doc-tab-content {
+            display: none;
+        }
+
+        .doc-tab-content.active {
+            display: block;
+        }
     </style>
 ";
             return stype;

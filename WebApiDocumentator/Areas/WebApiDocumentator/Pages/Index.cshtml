@@ -47,220 +47,233 @@
         }
         else
         {
-            <div class="endpoint-header">
-                <span class="endpoint-method @selected.HttpMethod">@selected.HttpMethod</span>
-                <h1 class="endpoint-title">@selected.Route</h1>
-            </div>
-
-            <p class="endpoint-description">@summary</p>
-
-            @if(parameters.Any())
-            {
-                <div class="card">
-                    <h3>Additional Parameters</h3>
-                    <ul>
-                        @foreach(var param in parameters)
-                        {
-                            <li>@param</li>
-                        }
-                    </ul>
+            <div id="documentation-tabs">
+                <div class="doc-tabs">
+                    <div class="doc-tab active" data-tab="documentation">Documentation</div>
+                    <div class="doc-tab" data-tab="testing">Test Endpoint</div>
                 </div>
-            }
 
-            <div class="card">
-                <h3>Parameters</h3>
-                @if(selected.Parameters.Any())
-                {
-                    <div style="overflow-x: auto;">
-                        <table class="schema-table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>Required</th>
-                                    <th>Source</th>
-                                    <th>Description</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach(var param in selected.Parameters)
-                                {
-                                    <tr>
-                                        <td>@param.Name</td>
-                                        <td>@param.Type</td>
-                                        <td>@(param.IsRequired ? "Yes" : "No")</td>
-                                        <td class="source-@param.Source.ToLower()">@param.Source</td>
-                                        <td>@param.Description</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-                else
-                {
-                    <p>No parameters.</p>
-                }
-            </div>
-
-            <div id="models-example">
-                <div class="models-tabs">
-                    <div class="models-tab active" data-tab="request">Request</div>
-                    <div class="models-tab" data-tab="response">Response</div>
-                </div>
-                <div class="card models-tab-content active" id="request-tab">
-                    <h3>Request</h3>
-                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                    {
-                        <pre class="json-viewer">@Model.RequestBodyJson</pre>
-                    }
-                    else
-                    {
-                        <p>No request schema available.</p>
-                    }
-                </div>
-                <div class="card models-tab-content" id="response-tab">
-                    <h3>Response</h3>
-                    <p><strong>Type:</strong> @selected.ReturnType</p>
-                    @if(!string.IsNullOrWhiteSpace(selected.ExampleJson))
-                    {
-                        <pre class="json-viewer">@selected.ExampleJson</pre>
-                    }
-                    else
-                    {
-                        <p>No return schema available.</p>
-                    }
-                </div>
-            </div>
-
-            <div class="card test-form">
-                <h3>Test this endpoint</h3>
-                <form method="post" action="@($"/{Model.DocsBaseUrl}?id={selected.Id}")" id="testForm">
-                    <input type="hidden" name="TestInput.Id" value="@selected.Id" />
-                    <input type="hidden" name="TestInput.Method" value="@method" />
-                    <input type="hidden" name="TestInput.Route" value="@route" />
-                    @Html.AntiForgeryToken()
-
-                    <div class="auth-section">
-                        <input type="hidden" id="authTypeValue" name="authTypeValue" value="@Model.TestInput.Authentication.Type" />
-                        <input type="hidden" id="apiKeyLocationValue" name="apiKeyLocationValue" value="@Model.TestInput.Authentication.ApiKeyLocation" />
-                        <label for="authType">Authentication Type</label>
-                        <select id="authType" name="TestInput.Authentication.Type" class="form-control" onchange="toggleAuthFields()">
-                            <option value="None">None</option>
-                            <option value="Bearer">Bearer Token</option>
-                            <option value="ApiKey">API Key</option>
-                            <option value="Basic">Basic Auth</option>
-                        </select>
-
-                        <div id="bearerFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Bearer ? "active" : "")">
-                            <label for="bearerToken">Bearer Token (Required)</label>
-                            <input type="text" id="bearerToken" name="TestInput.Authentication.BearerToken" value="@Model.TestInput.Authentication.BearerToken" placeholder="Enter Bearer Token" />
-                            @if(ModelState.ContainsKey("TestInput.Authentication.BearerToken"))
-                            {
-                                <div class="field-error">
-                                    @ModelState["TestInput.Authentication.BearerToken"].Errors.FirstOrDefault()?.ErrorMessage
-                                </div>
-                            }
-                        </div>
-
-                        <div id="apiKeyFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.ApiKey ? "active" : "")">
-                            <label for="apiKeyValue">API Key (Required)</label>
-                            <input type="text" id="apiKeyValue" name="TestInput.Authentication.ApiKeyValue" value="@Model.TestInput.Authentication.ApiKeyValue" placeholder="Enter API Key" />
-                            @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyValue"))
-                            {
-                                <div class="field-error">
-                                    @ModelState["TestInput.Authentication.ApiKeyValue"].Errors.FirstOrDefault()?.ErrorMessage
-                                </div>
-                            }
-
-                            <label for="apiKeyName">Header/Parameter Name (Optional, defaults to 'X-Api-Key')</label>
-                            <input type="text" id="apiKeyName" name="TestInput.Authentication.ApiKeyName" value="@Model.TestInput.Authentication.ApiKeyName" placeholder="e.g., X-Api-Key" />
-                            @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyName"))
-                            {
-                                <div class="field-error">
-                                    @ModelState["TestInput.Authentication.ApiKeyName"].Errors.FirstOrDefault()?.ErrorMessage
-                                </div>
-                            }
-
-                            <label for="apiKeyLocation">Location</label>
-                            <select id="apiKeyLocation" name="TestInput.Authentication.ApiKeyLocation" class="form-control">
-                                <option value="Header">Header</option>
-                                <option value="Query">Query</option>
-                            </select>
-                        </div>
-
-                        <div id="basicFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Basic ? "active" : "")">
-                            <label for="basicUsername">Username (Required)</label>
-                            <input type="text" id="basicUsername" name="TestInput.Authentication.BasicUsername" value="@Model.TestInput.Authentication.BasicUsername" placeholder="Enter Username" />
-                            <label for="basicPassword">Password (Required)</label>
-                            <input type="password" id="basicPassword" name="TestInput.Authentication.BasicPassword" value="@Model.TestInput.Authentication.BasicPassword" placeholder="Enter Password" />
-                        </div>
-                        <button type="button" class="btn btn-secondary" onclick="clearAuth()">Clear Authentication</button>
+                <div class="doc-tab-content active" id="documentation-tab">
+                    <!-- Todo el contenido actual de documentación -->
+                    <div class="endpoint-header">
+                        <span class="endpoint-method @selected.HttpMethod">@selected.HttpMethod</span>
+                        <h1 class="endpoint-title">@selected.Route</h1>
                     </div>
 
-                    @foreach(var param in selected.Parameters)
+                    <p class="endpoint-description">@summary</p>
+                                                                         
+                    @if(parameters.Any())
                     {
-                        if(param.IsValueParameter)
-                        {
-                            string value = Model.TestInput.Parameters.ContainsKey(param.Name) ? Model.TestInput.Parameters[param.Name] : Model.GenerateFlatSchema(param.Schema) ?? "";
-                            <div class="form-group">
-                                <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label>
-                                @if(param.IsFromBody)
-                                {
-                                    <textarea name="TestInput.Parameters[@param.Name]"
-                                              placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value</textarea>
-                                }
-                                else
-                                {
-                                    <input type="text"
-                                           name="TestInput.Parameters[@param.Name]"
-                                           value="@value"
-                                           placeholder="@(param.IsRequired ? "Required" : "Optional")" />
-                                }
-                                @if(ModelState.ContainsKey($"TestInput.Parameters[{param.Name}]"))
-                                {
-                                    <div class="field-error">
-                                        @ModelState[$"TestInput.Parameters[{param.Name}]"].Errors.FirstOrDefault()?.ErrorMessage
-                                    </div>
-                                }
-                            </div>
-                        }
-                    }
-                    @if(!ModelState.IsValid && ModelState.Any(e => e.Value?.Errors?.Any(e => !string.IsNullOrWhiteSpace(e.ErrorMessage)) ?? false))
-                    {
-                        <div class="error-message">
+                        <div class="card">
+                            <h3>Additional Parameters</h3>
                             <ul>
-                                @foreach(var error in ModelState.Where(kvp => !kvp.Key.StartsWith("TestInput.Parameters[")))
+                                @foreach(var param in parameters)
                                 {
-                                    foreach(var err in error.Value.Errors)
-                                    {
-                                        if(!string.IsNullOrWhiteSpace(err.ErrorMessage))
-                                        {
-                                            <li>
-                                                @err.ErrorMessage
-                                            </li>
-                                        }
-                                    }
+                                    <li>@param</li>
                                 }
                             </ul>
                         </div>
                     }
 
-                    <button type="submit" class="btn" id="submitBtn">Test Endpoint</button>
-                    <div class="loading" id="loadingIndicator">
-                        <div class="loading-spinner"></div>
-                        <p>Sending request...</p>
+                    <div class="card">
+                        <h3>Parameters</h3>
+                        @if(selected.Parameters.Any())
+                        {
+                            <div style="overflow-x: auto;">
+                                <table class="schema-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Required</th>
+                                            <th>Source</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach(var param in selected.Parameters)
+                                        {
+                                            <tr>
+                                                <td>@param.Name</td>
+                                                <td>@param.Type</td>
+                                                <td>@(param.IsRequired ? "Yes" : "No")</td>
+                                                <td class="source-@param.Source.ToLower()">@param.Source</td>
+                                                <td>@param.Description</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <p>No parameters.</p>
+                        }
                     </div>
-                </form>
-            </div>
 
-            @if(Model.TestResponse != null)
-            {
-                <div class="card">
-                    <h4>Test Response</h4>
-                    <pre class="json-viewer">@Model.TestResponse</pre>
+                    <div id="models-example">
+                        <div class="models-tabs">
+                            <div class="models-tab active" data-tab="request">Request</div>
+                            <div class="models-tab" data-tab="response">Response</div>
+                        </div>
+                        <div class="card models-tab-content active" id="request-tab">
+                            <h3>Request</h3>
+                            @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                            {
+                                <pre class="json-viewer">@Model.RequestBodyJson</pre>
+                            }
+                            else
+                            {
+                                <p>No request schema available.</p>
+                            }
+                        </div>
+                        <div class="card models-tab-content" id="response-tab">
+                            <h3>Response</h3>
+                            <p><strong>Type:</strong> @selected.ReturnType</p>
+                            @if(!string.IsNullOrWhiteSpace(selected.ExampleJson))
+                            {
+                                <pre class="json-viewer">@selected.ExampleJson</pre>
+                            }
+                            else
+                            {
+                                <p>No return schema available.</p>
+                            }
+                        </div>
+                    </div>
                 </div>
-            }
+
+                <div class="doc-tab-content" id="testing-tab">
+                    <div class="card test-form">
+                        <h3>Test this endpoint</h3>
+                        <form method="post" action="@($"/{Model.DocsBaseUrl}?id={selected.Id}")" id="testForm">
+                            <input type="hidden" name="TestInput.Id" value="@selected.Id" />
+                            <input type="hidden" name="TestInput.Method" value="@method" />
+                            <input type="hidden" name="TestInput.Route" value="@route" />
+                            @Html.AntiForgeryToken()
+
+                            <div class="auth-section">
+                                <input type="hidden" id="authTypeValue" name="authTypeValue" value="@Model.TestInput.Authentication.Type" />
+                                <input type="hidden" id="apiKeyLocationValue" name="apiKeyLocationValue" value="@Model.TestInput.Authentication.ApiKeyLocation" />
+                                <label for="authType">Authentication Type</label>
+                                <select id="authType" name="TestInput.Authentication.Type" class="form-control" onchange="toggleAuthFields()">
+                                    <option value="None">None</option>
+                                    <option value="Bearer">Bearer Token</option>
+                                    <option value="ApiKey">API Key</option>
+                                    <option value="Basic">Basic Auth</option>
+                                </select>
+
+                                <div id="bearerFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Bearer ? "active" : "")">
+                                    <label for="bearerToken">Bearer Token (Required)</label>
+                                    <input type="text" id="bearerToken" name="TestInput.Authentication.BearerToken" value="@Model.TestInput.Authentication.BearerToken" placeholder="Enter Bearer Token" />
+                                    @if(ModelState.ContainsKey("TestInput.Authentication.BearerToken"))
+                                    {
+                                        <div class="field-error">
+                                            @ModelState["TestInput.Authentication.BearerToken"].Errors.FirstOrDefault()?.ErrorMessage
+                                        </div>
+                                    }
+                                </div>
+
+                                <div id="apiKeyFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.ApiKey ? "active" : "")">
+                                    <label for="apiKeyValue">API Key (Required)</label>
+                                    <input type="text" id="apiKeyValue" name="TestInput.Authentication.ApiKeyValue" value="@Model.TestInput.Authentication.ApiKeyValue" placeholder="Enter API Key" />
+                                    @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyValue"))
+                                    {
+                                        <div class="field-error">
+                                            @ModelState["TestInput.Authentication.ApiKeyValue"].Errors.FirstOrDefault()?.ErrorMessage
+                                        </div>
+                                    }
+
+                                    <label for="apiKeyName">Header/Parameter Name (Optional, defaults to 'X-Api-Key')</label>
+                                    <input type="text" id="apiKeyName" name="TestInput.Authentication.ApiKeyName" value="@Model.TestInput.Authentication.ApiKeyName" placeholder="e.g., X-Api-Key" />
+                                    @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyName"))
+                                    {
+                                        <div class="field-error">
+                                            @ModelState["TestInput.Authentication.ApiKeyName"].Errors.FirstOrDefault()?.ErrorMessage
+                                        </div>
+                                    }
+
+                                    <label for="apiKeyLocation">Location</label>
+                                    <select id="apiKeyLocation" name="TestInput.Authentication.ApiKeyLocation" class="form-control">
+                                        <option value="Header">Header</option>
+                                        <option value="Query">Query</option>
+                                    </select>
+                                </div>
+
+                                <div id="basicFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Basic ? "active" : "")">
+                                    <label for="basicUsername">Username (Required)</label>
+                                    <input type="text" id="basicUsername" name="TestInput.Authentication.BasicUsername" value="@Model.TestInput.Authentication.BasicUsername" placeholder="Enter Username" />
+                                    <label for="basicPassword">Password (Required)</label>
+                                    <input type="password" id="basicPassword" name="TestInput.Authentication.BasicPassword" value="@Model.TestInput.Authentication.BasicPassword" placeholder="Enter Password" />
+                                </div>
+                                <button type="button" class="btn btn-secondary" onclick="clearAuth()">Clear Authentication</button>
+                            </div>
+
+                            @foreach(var param in selected.Parameters)
+                            {
+                                if(param.IsValueParameter)
+                                {
+                                    string value = Model.TestInput.Parameters.ContainsKey(param.Name) ? Model.TestInput.Parameters[param.Name] : Model.GenerateFlatSchema(param.Schema) ?? "";
+                                    <div class="form-group">
+                                        <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label>
+                                        @if(param.IsFromBody)
+                                        {
+                                            <textarea name="TestInput.Parameters[@param.Name]"
+                                                      placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value</textarea>
+                                        }
+                                        else
+                                        {
+                                            <input type="text"
+                                                   name="TestInput.Parameters[@param.Name]"
+                                                   value="@value"
+                                                   placeholder="@(param.IsRequired ? "Required" : "Optional")" />
+                                        }
+                                        @if(ModelState.ContainsKey($"TestInput.Parameters[{param.Name}]"))
+                                        {
+                                            <div class="field-error">
+                                                @ModelState[$"TestInput.Parameters[{param.Name}]"].Errors.FirstOrDefault()?.ErrorMessage
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            }
+                            @if(!ModelState.IsValid && ModelState.Any(e => e.Value?.Errors?.Any(e => !string.IsNullOrWhiteSpace(e.ErrorMessage)) ?? false))
+                            {
+                                <div class="error-message">
+                                    <ul>
+                                        @foreach(var error in ModelState.Where(kvp => !kvp.Key.StartsWith("TestInput.Parameters[")))
+                                        {
+                                            foreach(var err in error.Value.Errors)
+                                            {
+                                                if(!string.IsNullOrWhiteSpace(err.ErrorMessage))
+                                                {
+                                                    <li>
+                                                        @err.ErrorMessage
+                                                    </li>
+                                                }
+                                            }
+                                        }
+                                    </ul>
+                                </div>
+                            }
+
+                
+                            <button type="submit" class="btn" id="submitBtn">Send Request</button>
+                            <div class="loading" id="loadingIndicator">
+                                <div class="loading-spinner"></div>
+                                <p>Sending request...</p>
+                            </div>
+                        </form>
+
+                        @if(Model.TestResponse != null)
+                        {
+                            <div class="card">
+                                <h4>Test Response</h4>
+                                <pre class="json-viewer">@Model.TestResponse</pre>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
         }
     </div>
 
@@ -774,6 +787,34 @@ var content = await response.Content.ReadAsStringAsync();</pre>
             });
         }
 
+        function setupDocumentationTabs() {
+            const tabs = document.querySelectorAll('.doc-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    switchToTab(tab.getAttribute('data-tab'));
+                });
+            });
+
+            // Si hay una respuesta de test, mostrar la pestaña de Testing
+            @if(Model.TestResponse != null)
+            {
+                <text>
+                setTimeout(() => {
+                    switchToTab('testing');
+                }, 100);
+                </text>
+            }
+        }
+
+        function switchToTab(tabName) {
+            // Remove active class from all tabs and contents
+            document.querySelectorAll('.doc-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.doc-tab-content').forEach(c => c.classList.remove('active'));
+
+            // Add active class to selected tab and content
+            document.querySelector(`.doc-tab[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
 
         document.addEventListener("DOMContentLoaded", function () {
             // Initialize UI components
@@ -787,6 +828,7 @@ var content = await response.Content.ReadAsStringAsync();</pre>
             setupFormLoadingIndicator();
             setupCopyButtons();
             initMenu();
+            setupDocumentationTabs();
             scrollToSelectedEndpoint();
         });
     </script>
