@@ -217,7 +217,9 @@
                                         <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label>
                                         @if(param.IsFromBody)
                                         {
+                                            var rows = Model.CountLinesInSchema(param.Schema);
                                             <textarea name="TestInput.Parameters[@param.Name]"
+                                                      rows="@rows"
                                                       placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value</textarea>
                                         }
                                         else

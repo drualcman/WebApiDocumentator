@@ -421,6 +421,20 @@ internal class IndexModel : PageModel
     ? char.ToUpper(SelectedEndpoint.HttpMethod[0]) + SelectedEndpoint.HttpMethod.Substring(1).ToLower()
     : "";
 
+    public int CountLinesInSchema(Dictionary<string, object>? schema)
+    {
+        int result = 5;
+        if(schema != null)
+        {
+            var json = GenerateFlatSchema(schema);
+            if(!string.IsNullOrWhiteSpace(json))
+            {
+                result = json.Split('\n').Length;
+            }
+        }
+        return result;
+    }
+
     public string Style
     {
         get
