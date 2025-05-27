@@ -22,6 +22,37 @@ internal class IndexModel : PageModel
     public string? ExampleRequestUrl { get; private set; }
     public string? RequestBodyJson { get; private set; }
     public string? ExampleBodyJson { get; private set; }
+    public string FormEnctype
+    {
+        get
+        {
+            foreach(ApiParameterInfo param in SelectedEndpoint?.Parameters ?? Enumerable.Empty<ApiParameterInfo>())
+            {
+                if(param.Source == "Form")
+                {
+                    Type? type = GetTypeFromName(param.Type);
+                    if(type == typeof(byte[]) || type?.Name == "IFormFile")
+                    {
+                        return "multipart/form-data";
+                    }
+
+                    if(type != null)
+                    {
+                        foreach(PropertyInfo prop in GetFormProperties(param.Type))
+                        {
+                            if(prop.PropertyType == typeof(byte[]) || prop.PropertyType.Name == "IFormFile")
+                            {
+                                return "multipart/form-data";
+                            }
+                        }
+                    }
+                }
+            }
+
+            return "application/x-www-form-urlencoded";
+        }
+    }
+
 
     public IndexModel(
         CompositeMetadataProvider metadataProvider,
@@ -104,7 +135,7 @@ internal class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if(string.IsNullOrEmpty(TestInput.Method) || string.IsNullOrEmpty(TestInput.Route))
+        if(string.IsNullOrWhiteSpace(TestInput.Method) || string.IsNullOrWhiteSpace(TestInput.Route))
         {
             ModelState.AddModelError("", "Method and route are required.");
             return Page();
@@ -130,11 +161,14 @@ internal class IndexModel : PageModel
         RequestBodyJson = GenerateRequestBodyJson(SelectedEndpoint);
 
         // Validar parámetros requeridos
-        foreach(var param in SelectedEndpoint.Parameters.Where(p => p.IsRequired))
+        if(!SelectedEndpoint.Parameters.Any(p => p.Source == "Form"))
         {
-            if(!TestInput.Parameters.ContainsKey(param.Name) || string.IsNullOrEmpty(TestInput.Parameters[param.Name]))
+            foreach(var param in SelectedEndpoint.Parameters.Where(p => p.IsRequired))
             {
-                ModelState.AddModelError($"TestInput.Parameters[{param.Name}]", $"Parameter {param.Name} is required.");
+                if(!TestInput.Parameters.ContainsKey(param.Name) || string.IsNullOrEmpty(TestInput.Parameters[param.Name]))
+                {
+                    ModelState.AddModelError($"TestInput.Parameters[{param.Name}]", $"Parameter {param.Name} is required.");
+                }
             }
         }
 
@@ -157,7 +191,7 @@ internal class IndexModel : PageModel
                 ModelState.AddModelError("TestInput.BasicPassword", "Password is required for Basic authentication.");
             }
         }
-        else if(TestInput.Authentication.Type == AuthenticationType.ApiKey && string.IsNullOrEmpty(TestInput.Authentication.ApiKeyValue))
+        else if(TestInput.Authentication.Type == AuthenticationType.ApiKey && !string.IsNullOrWhiteSpace(TestInput.Authentication.ApiKeyValue))
         {
             ModelState.AddModelError("TestInput.Authentication.ApiKeyValue", "API Key is required when API Key authentication is selected.");
         }
@@ -207,7 +241,7 @@ internal class IndexModel : PageModel
         }
         else if(TestInput.Authentication.Type == AuthenticationType.Basic)
         {
-            var credentials = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{TestInput.Authentication.BasicUsername}:{TestInput.Authentication.Type}"));
+            var credentials = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{TestInput.Authentication.BasicUsername}:{TestInput.Authentication.BasicPassword}"));
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
             _logger.LogInformation("Added Basic authentication header");
         }
@@ -232,9 +266,8 @@ internal class IndexModel : PageModel
         if(SelectedEndpoint.Parameters.Any(p => p.IsFromBody))
         {
             var bodyParam = SelectedEndpoint.Parameters.FirstOrDefault(p => p.IsFromBody);
-            if(bodyParam != null && TestInput.Parameters.ContainsKey(bodyParam.Name))
+            if(TestInput.Parameters.TryGetValue(bodyParam.Name, out string? bodyValue))
             {
-                var bodyValue = TestInput.Parameters[bodyParam.Name];
                 try
                 {
                     var jsonObject = JsonSerializer.Deserialize<object>(bodyValue);
@@ -244,15 +277,94 @@ internal class IndexModel : PageModel
                 catch(JsonException)
                 {
                     ModelState.AddModelError($"TestInput.Parameters[{bodyParam.Name}]", "Body must be valid JSON.");
-                    return Page();
                 }
             }
             else
             {
                 ModelState.AddModelError("", "Request body is missing for the expected parameter.");
-                return Page();
             }
         }
+        else if(SelectedEndpoint.Parameters.Any(p => p.Source == "Form"))
+        {
+            IFormCollection form = await Request.ReadFormAsync();
+
+            TestInput.Files = new Dictionary<string, IFormFile>();
+
+            foreach(IFormFile file in form.Files)
+            {
+                // file.Name será: TestInput.Files[profilepicture]
+                string rawKey = file.Name;
+
+                // Intentamos extraer solo la clave dentro del diccionario, por ejemplo: "profilepicture"
+                string? extractedKey = ExtractKeyFromFieldName(rawKey);
+
+                if(!string.IsNullOrWhiteSpace(extractedKey))
+                {
+                    TestInput.Files[extractedKey] = file;
+                }
+
+                _logger.LogInformation("Received file: {Key} ({Length} bytes)", extractedKey, file.Length);
+            }
+
+            bool useMultipart = TestInput.Files != null && TestInput.Files.Count > 0;
+
+            if(useMultipart)
+            {
+                MultipartFormDataContent multipartContent = new MultipartFormDataContent();
+
+                foreach(KeyValuePair<string, string?> parameter in TestInput.Parameters)
+                {
+                    if(!string.IsNullOrWhiteSpace(parameter.Value))
+                    {
+                        multipartContent.Add(new StringContent(parameter.Value), parameter.Key);
+                    }
+                    else
+                    {
+                        ModelState.AddModelError($"TestInput.Parameters[{parameter.Key}]", $"Form parameter {parameter.Key} is required.");
+                    }
+                }
+
+                if(TestInput.Files != null)
+                {
+                    foreach(KeyValuePair<string, IFormFile> filePair in TestInput.Files)
+                    {
+                        if(filePair.Value != null)
+                        {
+                            StreamContent fileContent = new StreamContent(filePair.Value.OpenReadStream());
+                            multipartContent.Add(fileContent, filePair.Key, filePair.Value.FileName);
+                        }
+                    }
+                }
+
+                request.Content = multipartContent;
+                _logger.LogInformation("Added multipart/form-data content");
+            }
+            else
+            {
+                List<KeyValuePair<string, string>> formValues = new List<KeyValuePair<string, string>>();
+
+                foreach(KeyValuePair<string, string?> parameter in TestInput.Parameters)
+                {
+                    if(!string.IsNullOrWhiteSpace(parameter.Value))
+                    {
+                        formValues.Add(new KeyValuePair<string, string>(parameter.Key, parameter.Value));
+                    }
+                    else
+                    {
+                        ModelState.AddModelError($"TestInput.Parameters[{parameter.Key}]", $"Form parameter {parameter.Key} is required.");
+                    }
+                }
+
+                request.Content = new FormUrlEncodedContent(formValues);
+                _logger.LogInformation("Added application/x-www-form-urlencoded content");
+            }
+        }
+
+        if(!ModelState.IsValid)
+        {
+            return Page();
+        }
+
 
         try
         {
@@ -325,6 +437,18 @@ internal class IndexModel : PageModel
 
         return Page();
     }
+
+    private string? ExtractKeyFromFieldName(string fieldName)
+    {
+        int start = fieldName.IndexOf('[');
+        int end = fieldName.IndexOf(']');
+        if(start >= 0 && end > start)
+        {
+            return fieldName.Substring(start + 1, end - start - 1);
+        }
+        return null;
+    }
+
 
     // Nuevo método para generar la URL de ejemplo con parámetros de ruta y consulta
     private string GenerateExampleRequestUrl(ApiEndpointInfo endpoint)
@@ -434,6 +558,24 @@ internal class IndexModel : PageModel
         }
         return result;
     }
+
+    public Type? GetTypeFromName(string typeName)
+    {
+        return AppDomain.CurrentDomain
+            .GetAssemblies()
+            .SelectMany(a => a.GetTypes())
+            .FirstOrDefault(t => t.Name == typeName);
+    }
+
+    public IEnumerable<PropertyInfo> GetFormProperties(string typeName)
+    {
+        Type? type = GetTypeFromName(typeName);
+        if(type == null)
+            return Enumerable.Empty<PropertyInfo>();
+
+        return type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+    }
+
 
     public string Style
     {
@@ -820,9 +962,21 @@ internal class IndexModel : PageModel
                 border-bottom: none;
             }
 
-        .source-path {
-            color: var(--primary-color);
+        .source {
+            color: #7f8c8d;
             font-weight: 600;
+        }
+
+        .source.path {
+            color: #4a6baf;
+        }
+
+        .source.query {
+            color: #d35400;
+        }
+
+        .source.form {
+            color: #27ae60;
         }
 
     

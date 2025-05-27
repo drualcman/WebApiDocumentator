@@ -30,6 +30,19 @@ public class ParameterSourceResolver : IParameterSourceResolver
             _logger.LogDebug("Parameter {ParamName} in {MethodName}: Source=Query ([FromQuery])", paramName, method?.Name);
             return "Query";
         }
+        if(parameter.GetCustomAttribute<FromFormAttribute>() != null)
+        {
+            _logger.LogDebug("Parameter {ParamName} in {MethodName}: Source=Form ([FromForm])", paramName, method?.Name);
+            return "Form";
+        }
+        if(metadata?.OfType<IAcceptsMetadata>()
+            .Any(m => m.RequestType == paramType &&
+                 m.ContentTypes.Any(ct => ct.Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase) ||
+                                          ct.Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))) ?? false)
+        {
+            _logger.LogDebug("Parameter {ParamName} in {MethodName}: Source=Form (metadata content-type)", paramName, method?.Name);
+            return "Form";
+        }
         if(parameter.GetCustomAttribute<FromBodyAttribute>() != null ||
             (metadata?.OfType<IAcceptsMetadata>()
                 .Any(m => m.RequestType == paramType && m.ContentTypes.Contains("application/json")) ?? false))

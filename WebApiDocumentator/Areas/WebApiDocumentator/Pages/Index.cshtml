@@ -3,6 +3,7 @@
 @using WebApiDocumentator.Areas.WebApiDocumentator.Pages
 @using WebApiDocumentator.Metadata
 @using WebApiDocumentator.Models
+@using System.Text.Json
 @model WebApiDocumentator.Areas.WebApiDocumentator.Pages.IndexModel
 @{
     var selected = Model.SelectedEndpoint;
@@ -54,14 +55,13 @@
                 </div>
 
                 <div class="doc-tab-content active" id="documentation-tab">
-                    <!-- Todo el contenido actual de documentación -->
                     <div class="endpoint-header">
                         <span class="endpoint-method @selected.HttpMethod">@selected.HttpMethod</span>
                         <h1 class="endpoint-title">@selected.Route</h1>
                     </div>
 
                     <p class="endpoint-description">@summary</p>
-                                                                         
+
                     @if(parameters.Any())
                     {
                         <div class="card">
@@ -97,7 +97,7 @@
                                                 <td>@param.Name</td>
                                                 <td>@param.Type</td>
                                                 <td>@(param.IsRequired ? "Yes" : "No")</td>
-                                                <td class="source-@param.Source.ToLower()">@param.Source</td>
+                                                <td class="source @param.Source.ToLower()">@param.Source</td>
                                                 <td>@param.Description</td>
                                             </tr>
                                         }
@@ -145,7 +145,8 @@
                 <div class="doc-tab-content" id="testing-tab">
                     <div class="card test-form">
                         <h3>Test this endpoint</h3>
-                        <form method="post" action="@($"/{Model.DocsBaseUrl}?id={selected.Id}")" id="testForm">
+                        <p>@Model.FormEnctype</p>
+                        <form method="post" action="@($"/{Model.DocsBaseUrl}?id={selected.Id}")" id="testForm" enctype="@Model.FormEnctype">
                             <input type="hidden" name="TestInput.Id" value="@selected.Id" />
                             <input type="hidden" name="TestInput.Method" value="@method" />
                             <input type="hidden" name="TestInput.Route" value="@route" />
@@ -210,6 +211,7 @@
 
                             @foreach(var param in selected.Parameters)
                             {
+                                <p>@param.Source</p>
                                 if(param.IsValueParameter)
                                 {
                                     string value = Model.TestInput.Parameters.ContainsKey(param.Name) ? Model.TestInput.Parameters[param.Name] : Model.GenerateFlatSchema(param.Schema) ?? "";
@@ -219,9 +221,63 @@
                                         {
                                             var rows = Model.CountLinesInSchema(param.Schema);
                                             <textarea name="TestInput.Parameters[@param.Name]"
-                                                      rows="@rows"
-                                                      placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value</textarea>
+                                                  rows="@rows"
+                                                  placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value</textarea>
                                         }
+                                        else if(param.Source == "Form")
+                                        {
+                                            var formProps = Model.GetFormProperties(param.Type);
+                                            <p>Parametros @formProps.Count()</p>
+                                            foreach(var prop in formProps)
+                                            {
+                                                string propName = prop.Name;
+                                                string fullKey = $"TestInput.Parameters[{propName}]";
+                                                string currentValue = Model.TestInput.Parameters.ContainsKey($"{propName}")
+                                                ? Model.TestInput.Parameters[$"{propName}"]
+                                                : "";
+                                                <p>Parametro @prop.Name</p>
+
+                                                <div class="form-group">
+                                                    <label>@prop.Name (@prop.PropertyType.Name)</label>
+
+                                                    @if(prop.PropertyType == typeof(bool))
+                                                    {
+                                                        <input type="checkbox"
+                                                               name="@fullKey"
+                                                               value="true"
+                                                               @(currentValue == "true" ? "checked" : "") />
+                                                    }
+                                                    else if(prop.PropertyType == typeof(DateTime) || prop.PropertyType == typeof(DateTime?))
+                                                    {
+                                                        <input type="datetime-local"
+                                                               name="@fullKey"
+                                                               value="@currentValue"
+                                                               placeholder="yyyy-MM-ddTHH:mm" />
+                                                    }
+                                                    else if(prop.PropertyType == typeof(byte[]) || prop.PropertyType.Name == "IFormFile")
+                                                    {                  
+                                                        fullKey = $"TestInput.Files[{propName}]";
+                                                        <p>Parametro @fullKey</p>
+                                                        <input type="file" name="@fullKey" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <input type="text"
+                                                               name="@fullKey"
+                                                               value="@currentValue"
+                                                               placeholder="@prop.PropertyType.Name" />
+                                                    }
+
+                                                    @if(ModelState.ContainsKey(fullKey))
+                                                    {
+                                                        <div class="field-error">
+                                                            @ModelState[fullKey].Errors.FirstOrDefault()?.ErrorMessage
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        }
+
                                         else
                                         {
                                             <input type="text"
@@ -258,7 +314,7 @@
                                 </div>
                             }
 
-                
+
                             <button type="submit" class="btn" id="submitBtn">Send Request</button>
                             <div class="loading" id="loadingIndicator">
                                 <div class="loading-spinner"></div>
@@ -294,11 +350,12 @@
                     <button class="copy-btn" data-target="curl-example">Copy</button>
                 </div>
                 <pre id="curl-example">curl -X @selected.HttpMethod @($"{Model.BaseUrl}/{Model.ExampleRequestUrl.TrimStart('/')}")
-                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                    {
-                        <text>     -H "Content-Type: application/json"
-     -d '@Html.Raw(Model.RequestBodyJson)'</text>
-                    }</pre>
+                        @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                        {
+                    <text>     -H "Content-Type: application/json"
+             -d '@Html.Raw(Model.RequestBodyJson)'</text>
+                        }
+    </pre>
             </div>
 
             <div class="example-tab-content" id="csharp-tab">
@@ -306,18 +363,18 @@
                     <button class="copy-btn" data-target="csharp-example">Copy</button>
                 </div>
                 <pre id="csharp-example">using var client = new HttpClient();
-client.BaseAddress = new Uri("@Model.BaseUrl");
-                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                    {
-                        <text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
-using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
-                    }
-                    else
-                    {
-                        <text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
-                    }
-response.EnsureSuccessStatusCode();
-var content = await response.Content.ReadAsStringAsync();</pre>
+    client.BaseAddress = new Uri("@Model.BaseUrl");
+                        @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                        {
+                    <text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
+        using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
+                        }
+                        else
+                        {
+                    <text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
+                        }
+    response.EnsureSuccessStatusCode();
+    var content = await response.Content.ReadAsStringAsync();</pre>
             </div>
 
             <div class="example-tab-content" id="javascript-tab">
@@ -325,15 +382,15 @@ var content = await response.Content.ReadAsStringAsync();</pre>
                     <button class="copy-btn" data-target="javascript-example">Copy</button>
                 </div>
                 <pre id="javascript-example">fetch("@($"{Model.BaseUrl}/{Model.ExampleRequestUrl.TrimStart('/')}")", {
-     method: "@selected.HttpMethod",
-                    @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                    {
-                        <text>     headers: { "Content-Type": "application/json" },
-     body: @Html.Raw(Model.RequestBodyJson)</text>
-                    }
-})
-.then(res => res.json())
-.then(data => console.log(data));</pre>
+         method: "@selected.HttpMethod",
+                        @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                        {
+                    <text>     headers: { "Content-Type": "application/json" },
+             body: @Html.Raw(Model.RequestBodyJson)</text>
+                        }
+    })
+    .then(res => res.json())
+    .then(data => console.log(data));</pre>
             </div>
         </div>
     }
@@ -362,9 +419,7 @@ var content = await response.Content.ReadAsStringAsync();</pre>
     </div>
 
     <script>
-        // Auth related functions
         function initAuthFields() {
-            // Initialize auth type and api key location from hidden fields
             var authTypeItem = document.getElementById("authTypeValue");
             if (authTypeItem) {
                 document.getElementById("authType").value = authTypeItem.value;
@@ -401,7 +456,6 @@ var content = await response.Content.ReadAsStringAsync();</pre>
         }
 
         function clearAuth() {
-            // Reset authentication form
             document.getElementById("authType").value = "None";
             document.getElementById("bearerToken").value = "";
             document.getElementById("apiKeyValue").value = "";
@@ -410,8 +464,6 @@ var content = await response.Content.ReadAsStringAsync();</pre>
             document.getElementById("basicUsername").value = "";
             document.getElementById("basicPassword").value = "";
             toggleAuthFields();
-
-            // Send request to clear session
             fetch('/Docs?handler=ClearAuth', {
                 method: 'POST',
                 headers: {
@@ -424,33 +476,25 @@ var content = await response.Content.ReadAsStringAsync();</pre>
             });
         }
 
-        // UI Setup functions
         function setupExampleTabs() {
             const tabs = document.querySelectorAll('.example-tab');
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
-                    // Remove active class from all tabs and contents
                     document.querySelectorAll('.example-tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.example-tab-content').forEach(c => c.classList.remove('active'));
-
-                    // Add active class to clicked tab and corresponding content
                     tab.classList.add('active');
                     const tabId = tab.getAttribute('data-tab');
                     document.getElementById(`${tabId}-tab`).classList.add('active');
                 });
             });
-        } 
-        
-        // UI Setup functions
+        }
+
         function setupModelsTabs() {
             const tabs = document.querySelectorAll('.models-tab');
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
-                    // Remove active class from all tabs and contents
                     document.querySelectorAll('.models-tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.models-tab-content').forEach(c => c.classList.remove('active'));
-
-                    // Add active class to clicked tab and corresponding content
                     tab.classList.add('active');
                     const tabId = tab.getAttribute('data-tab');
                     document.getElementById(`${tabId}-tab`).classList.add('active');
@@ -468,8 +512,6 @@ var content = await response.Content.ReadAsStringAsync();</pre>
                     sidebarToggle.classList.toggle('active');
                 });
             }
-
-            // Close sidebar when clicking outside on mobile
             document.addEventListener('click', (e) => {
                 if (!sidebar.contains(e.target) &&
                     e.target !== sidebarToggle) {
@@ -479,16 +521,12 @@ var content = await response.Content.ReadAsStringAsync();</pre>
             });
         }
 
-        // Collapsible groups functions
         function setupCollapsibleGroups() {
             const groupHeaders = document.querySelectorAll('.group-header');
             const toggleAllBtn = document.getElementById('toggleAll');
             let allCollapsed = true;
 
-            // Primero calculamos todas las alturas correctamente
             calculateAllGroupHeights();
-
-            // Configurar evento click para los headers
             groupHeaders.forEach(header => {
                 header.addEventListener('click', (e) => {
                     if (e.target === toggleAllBtn) return;
@@ -499,8 +537,6 @@ var content = await response.Content.ReadAsStringAsync();</pre>
                     toggleGroup(groupItems, toggle);
                 });
             });
-
-            // Configurar el bot?n "Expand All/Collapse All"
             if (toggleAllBtn) {
                 toggleAllBtn.addEventListener('click', () => {
                     allCollapsed = !allCollapsed;
@@ -521,17 +557,14 @@ var content = await response.Content.ReadAsStringAsync();</pre>
         }
 
         function calculateAllGroupHeights() {
-            // Obtenemos todos los grupos desde los m?s profundos hasta los m?s superficiales
             const allGroups = Array.from(document.querySelectorAll('.group-items'));
 
-            // Ordenamos los grupos por profundidad (los m?s profundos primero)
             allGroups.sort((a, b) => {
                 const depthA = getDepth(a);
                 const depthB = getDepth(b);
                 return depthB - depthA;
             });
 
-            // Calculamos la altura para cada grupo
             allGroups.forEach(group => {
                 const height = calculateGroupHeightRecursive(group);
                 group.dataset.calculatedHeight = height;
@@ -546,36 +579,27 @@ var content = await response.Content.ReadAsStringAsync();</pre>
                 depth++;
                 current = current.parentElement.closest('.group-items');
             }
-
             return depth;
         }
 
         function calculateGroupHeightRecursive(groupElement) {
             let height = 0;
 
-            // Sumamos la altura de los elementos directos
             Array.from(groupElement.children).forEach(child => {
                 if (child.style.display === 'none') return;
-
-                // Sumamos la altura del elemento m?s sus m?rgenes
                 const style = window.getComputedStyle(child);
                 const margin = parseInt(style.marginTop) + parseInt(style.marginBottom);
                 height += child.offsetHeight + margin;
-
-                // Si es un grupo anidado
                 if (child.classList.contains('group-items')) {
-                    // Solo sumamos su altura si est? expandido
                     if (child.style.maxHeight && child.style.maxHeight !== '0px') {
                         height += parseInt(child.dataset.calculatedHeight || calculateGroupHeightRecursive(child));
                     }
                 }
-                // Si es una lista de endpoints (grupo padre)
                 else if (child.classList.contains('endpoint-list')) {
                     Array.from(child.children).forEach(grandChild => {
                         if (grandChild.classList.contains('endpoint-group')) {
                             const items = grandChild.querySelector('.group-items');
                             if (items) {
-                                // Solo sumamos la altura si est? expandido
                                 if (items.style.maxHeight && items.style.maxHeight !== '0px') {
                                     height += parseInt(items.dataset.calculatedHeight || calculateGroupHeightRecursive(items));
                                 }
@@ -584,31 +608,24 @@ var content = await response.Content.ReadAsStringAsync();</pre>
                     });
                 }
             });
-
             return height;
         }
 
         function expandGroup(groupItems, toggle) {
-            // Forzar rec?lculo de la altura
             const height = calculateGroupHeightRecursive(groupItems);
             groupItems.dataset.calculatedHeight = height;
             groupItems.style.maxHeight = height + 'px';
-
             if (toggle) toggle.classList.remove('collapsed');
-
-            // Tambi?n expandimos los grupos padres
             let parentGroup = groupItems.parentElement.closest('.group-items');
             while (parentGroup) {
                 const parentHeight = calculateGroupHeightRecursive(parentGroup);
                 parentGroup.dataset.calculatedHeight = parentHeight;
                 parentGroup.style.maxHeight = parentHeight + 'px';
-
                 const parentHeader = parentGroup.previousElementSibling;
                 if (parentHeader && parentHeader.classList.contains('group-header')) {
                     const parentToggle = parentHeader.querySelector('.group-toggle');
                     if (parentToggle) parentToggle.classList.remove('collapsed');
                 }
-
                 parentGroup = parentGroup.parentElement.closest('.group-items');
             }
         }
@@ -626,18 +643,13 @@ var content = await response.Content.ReadAsStringAsync();</pre>
             }
         }
 
-        // Llamar a esta funci?n al cargar la p?gina
         function initMenu() {
-            // Primero colapsar todo
             document.querySelectorAll('.group-items').forEach(group => {
                 group.style.maxHeight = '0';
             });
-
-            // Calcular alturas despu?s de colapsar
             setTimeout(() => {
                 calculateAllGroupHeights();
 
-                // Expandir solo la ruta seleccionada
                 const selectedLink = document.querySelector('.endpoint-link.selected');
                 if (selectedLink) {
                     let currentGroup = selectedLink.closest('.group-items');
@@ -650,28 +662,20 @@ var content = await response.Content.ReadAsStringAsync();</pre>
             }, 100);
         }
 
-        // Search functionality
         function setupEndpointSearch() {
             const searchInput = document.getElementById('searchEndpoints');
             if (searchInput) {
                 searchInput.addEventListener('input', () => {
                     const searchTerm = searchInput.value.toLowerCase();
                     const endpointLinks = document.querySelectorAll('.endpoint-link');
-                    let anyVisible = false;
-
-                    // First hide all elements
                     endpointLinks.forEach(link => {
                         link.style.display = 'none';
                     });
 
-                    // Show only matching elements
                     endpointLinks.forEach(link => {
                         const text = link.textContent.toLowerCase();
                         if (text.includes(searchTerm)) {
                             link.style.display = 'flex';
-                            anyVisible = true;
-
-                            // Expand parent hierarchy
                             let parentGroup = link.closest('.group-items');
                             while (parentGroup) {
                                 parentGroup.style.display = 'block';
@@ -686,19 +690,15 @@ var content = await response.Content.ReadAsStringAsync();</pre>
                             }
                         }
                     });
-
-                    // Hide empty groups
                     document.querySelectorAll('.group-items').forEach(group => {
                         const visibleItems = group.querySelectorAll('.endpoint-link[style="display: flex;"]').length;
                         const childGroups = group.querySelectorAll('.group-items');
                         let childVisible = false;
-
                         childGroups.forEach(child => {
                             if (child.style.display !== 'none') {
                                 childVisible = true;
                             }
                         });
-
                         if (visibleItems === 0 && !childVisible) {
                             group.style.display = 'none';
                             const header = group.previousElementSibling;
@@ -717,16 +717,11 @@ var content = await response.Content.ReadAsStringAsync();</pre>
             }
         }
 
-        // Selected endpoint functions
         function collapseAllExceptSelected() {
             const selectedLink = document.querySelector('.endpoint-link.selected');
-
-            // Collapse all groups first
             document.querySelectorAll('.group-items').forEach(group => {
                 collapseGroup(group);
             });
-
-            // If there's a selected element, expand its path
             if (selectedLink) {
                 let currentGroup = selectedLink.closest('.group-items');
                 while (currentGroup) {
@@ -739,30 +734,24 @@ var content = await response.Content.ReadAsStringAsync();</pre>
         function scrollToSelectedEndpoint() {
             const selectedLink = document.querySelector('.endpoint-link.selected');
             if (selectedLink) {
-                // Expand only the selected element's path
                 collapseAllExceptSelected();
-
-                // Scroll to selected element
                 setTimeout(() => {
                     selectedLink.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 300);
             }
         }
 
-        // Form submission
         function setupFormLoadingIndicator() {
             const form = document.getElementById('testForm');
             if (form) {
                 form.addEventListener('submit', () => {
                     const submitBtn = document.getElementById('submitBtn');
                     const loadingIndicator = document.getElementById('loadingIndicator');
-
                     submitBtn.style.display = 'none';
                     loadingIndicator.style.display = 'block';
                 });
             }
         }
-        // Copy functionality
         function setupCopyButtons() {
             document.querySelectorAll('.copy-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -772,11 +761,8 @@ var content = await response.Content.ReadAsStringAsync();</pre>
                     if (codeElement) {
                         const textToCopy = codeElement.textContent;
                         navigator.clipboard.writeText(textToCopy).then(() => {
-                            // Feedback visual
                             this.textContent = 'Copied!';
                             this.classList.add('copied');
-
-                            // Reset after 2 seconds
                             setTimeout(() => {
                                 this.textContent = 'Copy';
                                 this.classList.remove('copied');
@@ -796,30 +782,23 @@ var content = await response.Content.ReadAsStringAsync();</pre>
                     switchToTab(tab.getAttribute('data-tab'));
                 });
             });
-
-            // Si hay una respuesta de test, mostrar la pestaña de Testing
-            @if(Model.TestResponse != null)
+            let testResponse = @Html.Raw(JsonSerializer.Serialize(Model.TestResponse));
+            if (testResponse && testResponse.length > 1)
             {
-                <text>
                 setTimeout(() => {
                     switchToTab('testing');
                 }, 100);
-                </text>
             }
         }
 
         function switchToTab(tabName) {
-            // Remove active class from all tabs and contents
             document.querySelectorAll('.doc-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.doc-tab-content').forEach(c => c.classList.remove('active'));
-
-            // Add active class to selected tab and content
             document.querySelector(`.doc-tab[data-tab="${tabName}"]`).classList.add('active');
             document.getElementById(`${tabName}-tab`).classList.add('active');
         }
 
         document.addEventListener("DOMContentLoaded", function () {
-            // Initialize UI components
             initAuthFields();
             setupModelsTabs();
             setupExampleTabs();
