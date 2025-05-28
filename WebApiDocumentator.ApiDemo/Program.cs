@@ -48,6 +48,7 @@ app.MapPost("/debug/routes", (IEnumerable<EndpointDataSource> endpointSources) =
     return Results.Ok(routes);
 }).WithName("DebugRoutes");
 
+
 app.MapGet("/weatherforecast", (IHttpClientFactory service) =>
 {
     var forecast = Enumerable.Range(1, 5).Select(index =>

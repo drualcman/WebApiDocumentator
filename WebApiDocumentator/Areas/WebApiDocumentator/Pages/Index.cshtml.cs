@@ -1161,7 +1161,7 @@ internal class IndexModel : PageModel
             display: inline-block;
         }
 
-        @@keyframes spin {
+        @keyframes spin {
             0% {
                 transform: rotate(0deg);
             }
