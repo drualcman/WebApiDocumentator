@@ -88,24 +88,25 @@ internal class ParameterDescriptionBuilder
                 {
                     _logger.LogDebug("Excluded service parameter: {ParamName} ({ParamType}) for method {MethodName}",
                         param.Name, paramType, method.Name);
-                    descriptionBuilder.AppendLine($"Service: {TypeNameHelper.GetFriendlyTypeName(param.ParameterType)}");
+                    paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name);
+                    descriptionBuilder.AppendLine($"[{paramType}] {param.Name}: {paramDescription?.Trim().TrimEnd('.')}".Trim().TrimEnd(':'));
                 }
             }
         }
 
-        // Generar descripción solo para parámetros válidos
-        foreach(var param in method.GetParameters())
-        {
-            if(!IsInvalidParameterName(param.Name) && validParameterNames.Contains(param.Name))
-            {
-                var paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name);
-                if(!string.IsNullOrWhiteSpace(paramDescription))
-                {
-                    var paramType = TypeNameHelper.GetFriendlyTypeName(param.ParameterType);
-                    descriptionBuilder.AppendLine($"{param.Name} ({paramType}): {paramDescription.Trim().TrimEnd('.')}");
-                }
-            }
-        }
+        //// Generar descripción solo para parámetros válidos
+        //foreach(var param in method.GetParameters())
+        //{
+        //    if(!IsInvalidParameterName(param.Name) && validParameterNames.Contains(param.Name))
+        //    {
+        //        var paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name);
+        //        if(!string.IsNullOrWhiteSpace(paramDescription))
+        //        {
+        //            var paramType = TypeNameHelper.GetFriendlyTypeName(param.ParameterType);
+        //            descriptionBuilder.AppendLine($"{param.Name} ({paramType}): {paramDescription.Trim().TrimEnd('.')}");
+        //        }
+        //    }
+        //}
 
         var returns = XmlDocumentationHelper.GetXmlReturns(_xmlDocs, method);
         if(!string.IsNullOrWhiteSpace(returns))
