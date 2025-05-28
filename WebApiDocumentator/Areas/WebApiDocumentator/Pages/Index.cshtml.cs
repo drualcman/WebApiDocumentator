@@ -22,6 +22,7 @@ internal class IndexModel : PageModel
     public string? ExampleRequestUrl { get; private set; }
     public string? RequestBodyJson { get; private set; }
     public string? ExampleBodyJson { get; private set; }
+    public string? ResponseCodeDescription { get; private set; }
     public string FormEnctype
     {
         get
@@ -138,6 +139,7 @@ internal class IndexModel : PageModel
         if(string.IsNullOrWhiteSpace(TestInput.Method) || string.IsNullOrWhiteSpace(TestInput.Route))
         {
             ModelState.AddModelError("", "Method and route are required.");
+            TestResponse = "Method and route are required.";
             return Page();
         }
 
@@ -152,6 +154,7 @@ internal class IndexModel : PageModel
         if(SelectedEndpoint == null)
         {
             ModelState.AddModelError("", "Selected endpoint not found.");
+            TestResponse = "Selected endpoint not found.";
             return Page();
         }
 
@@ -201,8 +204,9 @@ internal class IndexModel : PageModel
 
         if(!ModelState.IsValid)
         {
+            TestResponse = $"Invalid ModelState.";
             _logger.LogWarning("Invalid ModelState. Errors: {Errors}",
-                string.Join("; ", ModelState.SelectMany(e => e.Value.Errors.Select(err => $"{e.Key}: {err.ErrorMessage}"))));
+               string.Join("; ", ModelState.SelectMany(e => e.Value.Errors.Select(err => $"{e.Key}: {err.ErrorMessage}"))));
             return Page();
         }
 
@@ -362,6 +366,7 @@ internal class IndexModel : PageModel
 
         if(!ModelState.IsValid)
         {
+            TestResponse = "Please. Check data.";
             return Page();
         }
 
@@ -369,6 +374,7 @@ internal class IndexModel : PageModel
         try
         {
             var response = await _httpClient.SendAsync(request);
+            ResponseCodeDescription = $"[{(int)response.StatusCode}] {response.ReasonPhrase}".Trim();
             var responseContent = await response.Content.ReadAsStringAsync();
 
             if(!string.IsNullOrWhiteSpace(responseContent))
@@ -386,6 +392,7 @@ internal class IndexModel : PageModel
 
             if(!response.IsSuccessStatusCode)
             {
+                TestResponse = $"Request error: {(int)response.StatusCode} {response.ReasonPhrase}".Trim();
                 if(!string.IsNullOrWhiteSpace(responseContent))
                 {
                     try
@@ -414,24 +421,18 @@ internal class IndexModel : PageModel
                                 }
                             }
                         }
-                        else
-                        {
-                            ModelState.AddModelError("", $"Request error: {response.StatusCode} - {responseContent}");
-                        }
                     }
                     catch
                     {
-                        ModelState.AddModelError("", $"Request error: {(int)response.StatusCode} - {response.ReasonPhrase}. {responseContent}".Trim());
+                        TestResponse = $"Request error: {(int)response.StatusCode} {response.ReasonPhrase}. {responseContent}".Trim();
                     }
                 }
-                else
-                {
-                    ModelState.AddModelError("", $"Request error: {(int)response.StatusCode} - {response.ReasonPhrase}");
-                }
+                ModelState.AddModelError("", TestResponse);
             }
         }
         catch(HttpRequestException ex)
         {
+            TestResponse = $"Error sending request: {ex.Message}";
             ModelState.AddModelError("", $"Error sending request: {ex.Message}");
         }
 
@@ -880,12 +881,19 @@ internal class IndexModel : PageModel
             height: 100vh;
         }
 
-        .card {
+        .card, 
+        .section {
             background-color: white;
+            margin-bottom: .75rem;
+        }  
+
+        .card {
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+        }
+
+        .section {
+            padding: .2rem 1.5rem;
         }
 
         h1, h2, h3, h4, h5 {
@@ -932,7 +940,7 @@ internal class IndexModel : PageModel
 
         .endpoint-description {
             color: var(--gray-color);
-            margin-bottom: 1.5rem;
+            margin-bottom: .5rem;
         }
 
       
@@ -1000,7 +1008,7 @@ internal class IndexModel : PageModel
         }
 
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-top: 1.5rem;
         }
 
         label {
@@ -1010,6 +1018,8 @@ internal class IndexModel : PageModel
         }
 
         input[type=""text""],
+        input[type=""checkbox""],
+        input[type=""datetime-local""],
         input[type=""password""],
         textarea,
         select {

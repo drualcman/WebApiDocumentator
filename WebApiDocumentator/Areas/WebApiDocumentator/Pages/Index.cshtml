@@ -20,7 +20,7 @@
 <head>
     <meta charset="utf-8" />
     <title>@Model.Name (@Model.Version) | Documentation</title>
-    @Html.Raw(Model.Style)    
+    @Html.Raw(Model.Style)
 </head>
 <body>
     <div id="content">
@@ -64,8 +64,8 @@
 
                     @if(parameters.Any())
                     {
-                        <div class="card">
-                            <h3>Additional Parameters</h3>
+                        <div class="section">
+                            <h3>Service Parameters</h3>
                             <ul>
                                 @foreach(var param in parameters)
                                 {
@@ -145,7 +145,6 @@
                 <div class="doc-tab-content" id="testing-tab">
                     <div class="card test-form">
                         <h3>Test this endpoint</h3>
-                        <p>@Model.FormEnctype</p>
                         <form method="post" action="@($"/{Model.DocsBaseUrl}?id={selected.Id}")" id="testForm" enctype="@Model.FormEnctype">
                             <input type="hidden" name="TestInput.Id" value="@selected.Id" />
                             <input type="hidden" name="TestInput.Method" value="@method" />
@@ -211,90 +210,92 @@
 
                             @foreach(var param in selected.Parameters)
                             {
-                                <p>@param.Source</p>
                                 if(param.IsValueParameter)
                                 {
                                     string value = Model.TestInput.Parameters.ContainsKey(param.Name) ? Model.TestInput.Parameters[param.Name] : Model.GenerateFlatSchema(param.Schema) ?? "";
-                                    <div class="form-group">
-                                        <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label>
-                                        @if(param.IsFromBody)
-                                        {
-                                            var rows = Model.CountLinesInSchema(param.Schema);
+                                    @if(param.IsFromBody)
+                                    {
+                                        var rows = Model.CountLinesInSchema(param.Schema);
+                                        <div class="form-group">
+                                            <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label>
                                             <textarea name="TestInput.Parameters[@param.Name]"
-                                                  rows="@rows"
-                                                  placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value</textarea>
-                                        }
-                                        else if(param.Source == "Form")
+                                                      rows="@rows"
+                                                      placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value
+                                            </textarea>
+                                        </div>
+                                    }
+                                    else if(param.Source == "Form")
+                                    {
+                                        <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label>
+                                        var formProps = Model.GetFormProperties(param.Type);
+                                        foreach(var prop in formProps)
                                         {
-                                            var formProps = Model.GetFormProperties(param.Type);
-                                            <p>Parametros @formProps.Count()</p>
-                                            foreach(var prop in formProps)
-                                            {
-                                                string propName = prop.Name;
-                                                string fullKey = $"TestInput.Parameters[{propName}]";
-                                                string currentValue = Model.TestInput.Parameters.ContainsKey($"{propName}")
-                                                ? Model.TestInput.Parameters[$"{propName}"]
-                                                : "";
-                                                <p>Parametro @prop.Name</p>
+                                            string propName = prop.Name;
+                                            string fullKey = $"TestInput.Parameters[{propName}]";
+                                            string currentValue = Model.TestInput.Parameters.ContainsKey($"{propName}")
+                                            ? Model.TestInput.Parameters[$"{propName}"]
+                                            : "";
+                                            <div class="form-group">
+                                                <label>@prop.Name (@prop.PropertyType.Name)</label>
+                                                @if(prop.PropertyType == typeof(bool))
+                                                {
+                                                    <input type="checkbox"
+                                                           name="@fullKey"
+                                                           value="true"
+                                                           @(currentValue == "true" ? "checked" : "") />
+                                                }
+                                                else if(prop.PropertyType == typeof(DateTime) || prop.PropertyType == typeof(DateTime?))
+                                                {
+                                                    <input type="datetime-local"
+                                                           name="@fullKey"
+                                                           value="@currentValue"
+                                                           placeholder="yyyy-MM-ddTHH:mm" />
+                                                }
+                                                else if(prop.PropertyType == typeof(byte[]) || prop.PropertyType.Name == "IFormFile")
+                                                {
+                                                    fullKey = $"TestInput.Files[{propName}]";
+                                                    <p>Parametro @fullKey</p>
+                                                    <input type="file" name="@fullKey" />
+                                                }
+                                                else
+                                                {
+                                                    <input type="text"
+                                                           name="@fullKey"
+                                                           value="@currentValue"
+                                                           placeholder="@prop.PropertyType.Name" />
+                                                }
 
-                                                <div class="form-group">
-                                                    <label>@prop.Name (@prop.PropertyType.Name)</label>
-
-                                                    @if(prop.PropertyType == typeof(bool))
-                                                    {
-                                                        <input type="checkbox"
-                                                               name="@fullKey"
-                                                               value="true"
-                                                               @(currentValue == "true" ? "checked" : "") />
-                                                    }
-                                                    else if(prop.PropertyType == typeof(DateTime) || prop.PropertyType == typeof(DateTime?))
-                                                    {
-                                                        <input type="datetime-local"
-                                                               name="@fullKey"
-                                                               value="@currentValue"
-                                                               placeholder="yyyy-MM-ddTHH:mm" />
-                                                    }
-                                                    else if(prop.PropertyType == typeof(byte[]) || prop.PropertyType.Name == "IFormFile")
-                                                    {                  
-                                                        fullKey = $"TestInput.Files[{propName}]";
-                                                        <p>Parametro @fullKey</p>
-                                                        <input type="file" name="@fullKey" />
-                                                    }
-                                                    else
-                                                    {
-                                                        <input type="text"
-                                                               name="@fullKey"
-                                                               value="@currentValue"
-                                                               placeholder="@prop.PropertyType.Name" />
-                                                    }
-
-                                                    @if(ModelState.ContainsKey(fullKey))
-                                                    {
-                                                        <div class="field-error">
-                                                            @ModelState[fullKey].Errors.FirstOrDefault()?.ErrorMessage
-                                                        </div>
-                                                    }
-                                                </div>
-                                            }
+                                                @if(ModelState.ContainsKey(fullKey))
+                                                {
+                                                    <div class="field-error">
+                                                        @ModelState[fullKey].Errors.FirstOrDefault()?.ErrorMessage
+                                                    </div>
+                                                }
+                                            </div>
                                         }
-
-                                        else
-                                        {
+                                    }
+                                    else
+                                    {
+                                        <div class="form-group">
+                                            <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label>
                                             <input type="text"
                                                    name="TestInput.Parameters[@param.Name]"
                                                    value="@value"
                                                    placeholder="@(param.IsRequired ? "Required" : "Optional")" />
-                                        }
-                                        @if(ModelState.ContainsKey($"TestInput.Parameters[{param.Name}]"))
-                                        {
-                                            <div class="field-error">
-                                                @ModelState[$"TestInput.Parameters[{param.Name}]"].Errors.FirstOrDefault()?.ErrorMessage
-                                            </div>
-                                        }
-                                    </div>
+                                        </div>
+                                    }
+                                    @if(ModelState.ContainsKey($"TestInput.Parameters[{param.Name}]"))
+                                    {
+                                        <div class="field-error">
+                                            @ModelState[$"TestInput.Parameters[{param.Name}]"].Errors.FirstOrDefault()?.ErrorMessage
+                                        </div>
+                                    }
                                 }
                             }
-                            @if(!ModelState.IsValid && ModelState.Any(e => e.Value?.Errors?.Any(e => !string.IsNullOrWhiteSpace(e.ErrorMessage)) ?? false))
+                            @if(!ModelState.IsValid &&
+                                                    ModelState
+                                                    .Where(kvp => !kvp.Key.StartsWith("TestInput.Parameters["))
+                                                    .Any(state => state.Value?.Errors?.Any(e => !string.IsNullOrWhiteSpace(e.ErrorMessage)) ?? false))
                             {
                                 <div class="error-message">
                                     <ul>
@@ -325,7 +326,7 @@
                         @if(Model.TestResponse != null)
                         {
                             <div class="card">
-                                <h4>Test Response</h4>
+                                <h4>Response @Model.ResponseCodeDescription</h4>
                                 <pre class="json-viewer">@Model.TestResponse</pre>
                             </div>
                         }
@@ -350,12 +351,12 @@
                     <button class="copy-btn" data-target="curl-example">Copy</button>
                 </div>
                 <pre id="curl-example">curl -X @selected.HttpMethod @($"{Model.BaseUrl}/{Model.ExampleRequestUrl.TrimStart('/')}")
-                        @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                        {
+                            @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                            {
                     <text>     -H "Content-Type: application/json"
              -d '@Html.Raw(Model.RequestBodyJson)'</text>
-                        }
-    </pre>
+                            }
+        </pre>
             </div>
 
             <div class="example-tab-content" id="csharp-tab">
@@ -364,15 +365,15 @@
                 </div>
                 <pre id="csharp-example">using var client = new HttpClient();
     client.BaseAddress = new Uri("@Model.BaseUrl");
-                        @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                        {
+                            @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                            {
                     <text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
         using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
-                        }
-                        else
-                        {
+                            }
+                            else
+                            {
                     <text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
-                        }
+                            }
     response.EnsureSuccessStatusCode();
     var content = await response.Content.ReadAsStringAsync();</pre>
             </div>
@@ -383,11 +384,11 @@
                 </div>
                 <pre id="javascript-example">fetch("@($"{Model.BaseUrl}/{Model.ExampleRequestUrl.TrimStart('/')}")", {
          method: "@selected.HttpMethod",
-                        @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                        {
+                            @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                            {
                     <text>     headers: { "Content-Type": "application/json" },
              body: @Html.Raw(Model.RequestBodyJson)</text>
-                        }
+                            }
     })
     .then(res => res.json())
     .then(data => console.log(data));</pre>
