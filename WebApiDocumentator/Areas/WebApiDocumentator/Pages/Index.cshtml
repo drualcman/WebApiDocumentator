@@ -11,7 +11,7 @@
     var route = selected?.Route ?? "/default/route";
     var version = Model.GetApiVersion();
     var summary = selected?.Summary;
-    var parameters = string.IsNullOrWhiteSpace(selected?.Description) ? [] : selected?.Description?.Split("\n") ?? [];
+    var parameters = string.IsNullOrWhiteSpace(selected?.Description) ? new string[] { } : selected?.Description?.Split("\n") ?? new string[] { };
     ViewData["SelectedEndpoint"] = selected;
 }
 
