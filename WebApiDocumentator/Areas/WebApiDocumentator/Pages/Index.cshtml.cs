@@ -392,7 +392,8 @@ internal class IndexModel : PageModel
 
             if(!response.IsSuccessStatusCode)
             {
-                TestResponse = $"Request error: {(int)response.StatusCode} {response.ReasonPhrase}".Trim();
+                if(string.IsNullOrWhiteSpace(TestResponse))
+                    TestResponse = $"Request error: {(int)response.StatusCode} {response.ReasonPhrase}".Trim();
                 if(!string.IsNullOrWhiteSpace(responseContent))
                 {
                     try
@@ -424,10 +425,12 @@ internal class IndexModel : PageModel
                     }
                     catch
                     {
-                        TestResponse = $"Request error: {(int)response.StatusCode} {response.ReasonPhrase}. {responseContent}".Trim();
+                        TestResponse += $"\nRequest error: {(int)response.StatusCode} {response.ReasonPhrase}. {responseContent}".Trim();
                     }
                 }
-                ModelState.AddModelError("", TestResponse);
+                else
+
+                    ModelState.AddModelError("", TestResponse);
             }
         }
         catch(HttpRequestException ex)
