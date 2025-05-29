@@ -12,7 +12,7 @@
 		<PackageTags>webapi;netcore webapi documentation;documentation;</PackageTags>
 		<PackageId>WebApiDocumentator</PackageId>
 		<Product>WebApiDocumentator</Product>
-		<PackageReleaseNotes>Improve response information with status code.</PackageReleaseNotes>
+		<PackageReleaseNotes>Improve response information with status code. Change how to show the services parameters.</PackageReleaseNotes>
 		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
 		<PackageReadmeFile>README.md</PackageReadmeFile>		
 		<RepositoryUrl>https://github.com/drualcman/SmartApiResponseCache</RepositoryUrl>
