@@ -4,7 +4,7 @@
 		<TargetFrameworks>net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<AddRazorSupportForMvc>true</AddRazorSupportForMvc>
-		<Version>1.0.2</Version>
+		<Version>1.0.3</Version>
 		<Authors>Sergi Ortiz Gomez</Authors>
 		<Company>DrUalcman</Company>
 		<Description>A quick and easy way to create an interface to document a WebAPI built in .NET Core. It creates a user-friendly interface and has options for endpoint testing.</Description>
@@ -12,7 +12,7 @@
 		<PackageTags>webapi;netcore webapi documentation;documentation;</PackageTags>
 		<PackageId>WebApiDocumentator</PackageId>
 		<Product>WebApiDocumentator</Product>
-		<PackageReleaseNotes>Improve response information with status code. Change how to show the services parameters.</PackageReleaseNotes>
+		<PackageReleaseNotes>Show much better the response data when is 4xx or 5xx.</PackageReleaseNotes>
 		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
 		<PackageReadmeFile>README.md</PackageReadmeFile>		
 		<RepositoryUrl>https://github.com/drualcman/SmartApiResponseCache</RepositoryUrl>

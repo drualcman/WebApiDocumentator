@@ -132,7 +132,7 @@
                             <p><strong>Type:</strong> @selected.ReturnType</p>
                             @if(!string.IsNullOrWhiteSpace(selected.ExampleJson))
                             {
-                                <pre class="json-viewer">@selected.ExampleJson</pre>
+                                <pre class="json-viewer">@Html.Raw(selected.ExampleJson)</pre>
                             }
                             else
                             {
@@ -327,7 +327,7 @@
                         {
                             <div class="card">
                                 <h4>Response @Model.ResponseCodeDescription</h4>
-                                <pre class="json-viewer">@Model.TestResponse</pre>
+                                <pre class="json-viewer">@Html.Raw(Model.TestResponse)</pre>
                             </div>
                         }
                     </div>
