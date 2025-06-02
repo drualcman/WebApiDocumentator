@@ -47,24 +47,70 @@ internal class ParameterDescriptionBuilder
                 {
                     if(fromQueryAttr != null && !param.ParameterType.IsPrimitive && param.ParameterType != typeof(string))
                     {
-                        foreach(var prop in param.ParameterType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-                        {
-                            var propDescription = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, prop) ?? paramDescription;
-                            propDescription = propDescription.Trim().TrimEnd('.');
-                            var propType = TypeNameHelper.GetFriendlyTypeName(prop.PropertyType);
+                        // Verificar si es una colección
+                        Type elementType = null;
+                        bool isCollection = false;
 
+                        // Primero verificar si es un array
+                        if(param.ParameterType.IsArray)
+                        {
+                            isCollection = true;
+                            elementType = param.ParameterType.GetElementType();
+                        }
+                        else
+                        {
+                            // Verificar si es IEnumerable<T> y obtener el tipo genérico
+                            var enumerableInterface = param.ParameterType.GetInterfaces()
+                                .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+
+                            if(enumerableInterface != null)
+                            {
+                                isCollection = true;
+                                elementType = enumerableInterface.GetGenericArguments()[0];
+                            }
+                        }
+
+                        if(isCollection)
+                        {
+                            // Es una colección - crear un parámetro para la colección
+                            var collectionDescription = $"{paramDescription} (collection of {TypeNameHelper.GetFriendlyTypeName(elementType)})";
                             var paramModel = new ApiParameterInfo
                             {
-                                Name = prop.Name,
-                                Type = propType,
+                                Name = param.Name ?? "unnamed_parameter",
+                                Type = TypeNameHelper.GetFriendlyTypeName(param.ParameterType),
                                 IsFromBody = false,
                                 Source = "Query",
-                                IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null,
-                                Description = propDescription,
-                                Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(prop.PropertyType, new HashSet<Type>())
+                                IsRequired = param.GetCustomAttribute<RequiredAttribute>() != null || !param.IsOptional,
+                                Description = collectionDescription,
+                                IsCollection = true,
+                                CollectionElementType = TypeNameHelper.GetFriendlyTypeName(elementType),
+                                Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(param.ParameterType, new HashSet<Type>())
                             };
                             parameters.Add(paramModel);
-                            validParameterNames.Add(prop.Name);
+                            validParameterNames.Add(param.Name);
+                        }
+                        else
+                        {
+                            // No es colección - procesar como objeto complejo
+                            foreach(var prop in param.ParameterType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                            {
+                                var propDescription = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, prop) ?? paramDescription;
+                                propDescription = propDescription.Trim().TrimEnd('.');
+                                var propType = TypeNameHelper.GetFriendlyTypeName(prop.PropertyType);
+
+                                var paramModel = new ApiParameterInfo
+                                {
+                                    Name = prop.Name,
+                                    Type = propType,
+                                    IsFromBody = false,
+                                    Source = "Query",
+                                    IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null,
+                                    Description = propDescription,
+                                    Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(prop.PropertyType, new HashSet<Type>())
+                                };
+                                parameters.Add(paramModel);
+                                validParameterNames.Add(prop.Name);
+                            }
                         }
                     }
                     else

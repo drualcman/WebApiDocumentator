@@ -10,5 +10,7 @@ internal class ApiParameterInfo
     public string? Description { get; set; } // Nuevo: descripción del parámetro
     public Dictionary<string, object>? Schema { get; set; }
     public bool IsValueParameter => !(Source.Equals("Unknown") || Source.Equals("Service"));
+    public bool IsCollection { get; set; }
+    public string? CollectionElementType { get; set; }
 }
 

@@ -194,7 +194,7 @@ internal class IndexModel : PageModel
                 ModelState.AddModelError("TestInput.BasicPassword", "Password is required for Basic authentication.");
             }
         }
-        else if(TestInput.Authentication.Type == AuthenticationType.ApiKey && !string.IsNullOrWhiteSpace(TestInput.Authentication.ApiKeyValue))
+        else if(TestInput.Authentication.Type == AuthenticationType.ApiKey && string.IsNullOrWhiteSpace(TestInput.Authentication.ApiKeyValue))
         {
             ModelState.AddModelError("TestInput.Authentication.ApiKeyValue", "API Key is required when API Key authentication is selected.");
         }
@@ -226,17 +226,6 @@ internal class IndexModel : PageModel
             .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(TestInput.Parameters[p.Name])}")
             .ToList();
 
-        if(queryParams.Any())
-        {
-            requestUrl += "?" + string.Join("&", queryParams);
-        }
-
-        _logger.LogInformation("Request URL: {RequestUrl}", requestUrl);
-
-        _httpClient.BaseAddress = new Uri($"{Request.Scheme}://{Request.Host}{Request.PathBase}");
-
-        var request = new HttpRequestMessage(new HttpMethod(TestInput.Method), requestUrl);
-
         // Añadir encabezados de autenticación
         if(TestInput.Authentication.Type == AuthenticationType.Bearer)
         {
@@ -249,7 +238,7 @@ internal class IndexModel : PageModel
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
             _logger.LogInformation("Added Basic authentication header");
         }
-        else if(TestInput.Authentication.Type == AuthenticationType.ApiKey && string.IsNullOrEmpty(TestInput.Authentication.ApiKeyValue))
+        else if(TestInput.Authentication.Type == AuthenticationType.ApiKey && !string.IsNullOrEmpty(TestInput.Authentication.ApiKeyValue))
         {
             if(TestInput.Authentication.ApiKeyLocation == "Header")
             {
@@ -265,6 +254,17 @@ internal class IndexModel : PageModel
             }
         }
 
+        if(queryParams.Any())
+        {
+            requestUrl += "?" + string.Join("&", queryParams);
+        }
+
+        _logger.LogInformation("Request URL: {RequestUrl}", requestUrl);
+
+        _httpClient.BaseAddress = new Uri($"{Request.Scheme}://{Request.Host}{Request.PathBase}");
+
+        var request = new HttpRequestMessage(new HttpMethod(TestInput.Method), requestUrl);
+
 
         // Añadir cuerpo de la solicitud
         if(SelectedEndpoint.Parameters.Any(p => p.IsFromBody))
@@ -276,7 +276,7 @@ internal class IndexModel : PageModel
                 {
                     var jsonObject = JsonSerializer.Deserialize<object>(bodyValue);
                     var json = JsonSerializer.Serialize(jsonObject, new JsonSerializerOptions { WriteIndented = true });
-                    request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                    request.Content = new StringContent(json, Encoding.UTF8, "application/json");
                 }
                 catch(JsonException)
                 {

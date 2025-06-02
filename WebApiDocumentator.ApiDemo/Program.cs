@@ -48,6 +48,11 @@ app.MapPost("/debug/routes", (IEnumerable<EndpointDataSource> endpointSources) =
     return Results.Ok(routes);
 }).WithName("DebugRoutes");
 
+app.MapPost("/arrays", ([FromQuery] string[] names) =>
+{
+    return string.Join(",", names);
+}).WithName("Arrays en el request");
+
 
 app.MapGet("/weatherforecast", (IHttpClientFactory service) =>
 {
