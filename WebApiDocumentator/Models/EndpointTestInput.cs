@@ -8,5 +8,6 @@ internal class EndpointTestInput
     public Dictionary<string, string> Parameters { get; set; } = new();
     public Dictionary<string, IFormFile> Files { get; set; } = new();
     public AuthenticationInput Authentication { get; set; } = new();
+    public Dictionary<string, List<string>> Collections { get; set; } = new Dictionary<string, List<string>>();
 }
 

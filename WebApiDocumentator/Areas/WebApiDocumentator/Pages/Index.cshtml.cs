@@ -168,9 +168,35 @@ internal class IndexModel : PageModel
         {
             foreach(var param in SelectedEndpoint.Parameters.Where(p => p.IsRequired))
             {
-                if(!TestInput.Parameters.ContainsKey(param.Name) || string.IsNullOrEmpty(TestInput.Parameters[param.Name]))
+                if(param.IsCollection)
                 {
-                    ModelState.AddModelError($"TestInput.Parameters[{param.Name}]", $"Parameter {param.Name} is required.");
+                    // Validación para parámetros de colección
+                    if(!TestInput.Collections.ContainsKey(param.Name) ||
+                       TestInput.Collections[param.Name] == null ||
+                       !TestInput.Collections[param.Name].Any())
+                    {
+                        ModelState.AddModelError($"TestInput.Collections[{param.Name}]", $"Parameter {param.Name} is required and must have at least one item.");
+                    }
+                    else
+                    {
+                        // Validar cada elemento individual del array
+                        var collection = TestInput.Collections[param.Name];
+                        for(int i = 0; i < collection.Count; i++)
+                        {
+                            if(string.IsNullOrWhiteSpace(collection[i]))
+                            {
+                                ModelState.AddModelError($"TestInput.Collections[{param.Name}][{i}]", $"Item {i + 1} of {param.Name} cannot be empty.");
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Validación normal para parámetros no colección
+                    if(!TestInput.Parameters.ContainsKey(param.Name) || string.IsNullOrEmpty(TestInput.Parameters[param.Name]))
+                    {
+                        ModelState.AddModelError($"TestInput.Parameters[{param.Name}]", $"Parameter {param.Name} is required.");
+                    }
                 }
             }
         }
@@ -221,10 +247,34 @@ internal class IndexModel : PageModel
         }
 
         // Añadir parámetros de consulta
-        var queryParams = SelectedEndpoint.Parameters
-            .Where(p => p.Source == "Query" && TestInput.Parameters.ContainsKey(p.Name) && !string.IsNullOrEmpty(TestInput.Parameters[p.Name]))
-            .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(TestInput.Parameters[p.Name])}")
-            .ToList();
+        // Añadir parámetros de consulta
+        var queryParams = new List<string>();
+
+        foreach(var param in SelectedEndpoint.Parameters.Where(p => p.Source == "Query"))
+        {
+            if(param.IsCollection)
+            {
+                // Manejar parámetros de colección
+                if(TestInput.Collections.TryGetValue(param.Name, out var collectionValues) && collectionValues != null)
+                {
+                    foreach(var value in collectionValues)
+                    {
+                        if(!string.IsNullOrEmpty(value))
+                        {
+                            queryParams.Add($"{HttpUtility.UrlEncode(param.Name)}={HttpUtility.UrlEncode(value)}");
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Manejar parámetros normales
+                if(TestInput.Parameters.TryGetValue(param.Name, out var paramValue) && !string.IsNullOrEmpty(paramValue))
+                {
+                    queryParams.Add($"{HttpUtility.UrlEncode(param.Name)}={HttpUtility.UrlEncode(paramValue)}");
+                }
+            }
+        }
 
         // Añadir encabezados de autenticación
         if(TestInput.Authentication.Type == AuthenticationType.Bearer)
@@ -468,10 +518,24 @@ internal class IndexModel : PageModel
         }
 
         // Añadir parámetros de consulta
-        var queryParams = endpoint.Parameters
-            .Where(p => p.Source == "Query")
-            .Select(p => $"{HttpUtility.UrlEncode(p.Name)}={HttpUtility.UrlEncode(GenerateParameterExample(p, generator))}")
-            .ToList();
+        var queryParams = new List<string>();
+
+        foreach(var param in endpoint.Parameters.Where(p => p.Source == "Query"))
+        {
+            if(param.IsCollection)
+            {
+                // Ejemplo para colecciones - agregamos dos valores de ejemplo
+                var exampleValue1 = GenerateParameterExample(param, generator);
+                var exampleValue2 = GenerateParameterExample(param, generator);
+                queryParams.Add($"{HttpUtility.UrlEncode(param.Name)}={HttpUtility.UrlEncode(exampleValue1)}");
+                queryParams.Add($"{HttpUtility.UrlEncode(param.Name)}={HttpUtility.UrlEncode(exampleValue2)}");
+            }
+            else
+            {
+                var exampleValue = GenerateParameterExample(param, generator);
+                queryParams.Add($"{HttpUtility.UrlEncode(param.Name)}={HttpUtility.UrlEncode(exampleValue)}");
+            }
+        }
 
         if(queryParams.Any())
         {
@@ -484,6 +548,9 @@ internal class IndexModel : PageModel
     // Método auxiliar para generar valores de ejemplo para parámetros
     private string GenerateParameterExample(ApiParameterInfo param, JsonSchemaGenerator generator)
     {
+        // Si es una colección, usamos el tipo de elemento para generar el ejemplo
+        var typeToUse = param.IsCollection ? param.CollectionElementType : param.Type;
+
         if(param.Schema != null)
         {
             var example = generator.GetExampleAsJsonString(param.Schema);
@@ -494,12 +561,12 @@ internal class IndexModel : PageModel
         }
 
         // Valores predeterminados si no hay esquema o ejemplo
-        return param.Type switch
+        return typeToUse switch
         {
             "string" => "example",
-            "integer" => "123",
-            "number" => "123.45",
-            "boolean" => "true",
+            "int" or "integer" => "123",
+            "float" or "double" or "number" => "123.45",
+            "bool" or "boolean" => "true",
             _ => "example"
         };
     }
@@ -1236,6 +1303,45 @@ internal class IndexModel : PageModel
 
         .doc-tab-content.active {
             display: block;
+        }
+
+        .collection-parameter {
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .collection-items {
+            margin-top: 0.5rem;
+        }
+
+        .collection-item {
+            display: flex;
+            margin-bottom: 0.5rem;
+        }
+
+        .collection-item input {
+            flex-grow: 1;
+            margin-right: 0.5rem;
+        }
+
+        .btn-add-item, .btn-remove-item {
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+        }
+
+        .btn-remove-item {
+            background: #dc3545;
+            padding: 0 0.5rem;
+        }
+
+        .btn-add-item:hover, .btn-remove-item:hover {
+            opacity: 0.8;
         }
     </style>
 ";

@@ -219,9 +219,9 @@
                                         <div class="form-group">
                                             <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label>
                                             <textarea name="TestInput.Parameters[@param.Name]"
-                                                      rows="@rows"
-                                                      placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value
-                                            </textarea>
+                                      rows="@rows"
+                                      placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value
+                </textarea>
                                         </div>
                                     }
                                     else if(param.Source == "Form")
@@ -273,6 +273,34 @@
                                                 }
                                             </div>
                                         }
+                                    }
+                                    else if(param.IsCollection && param.Source == "Query")
+                                    {
+                                        // Nuevo código para manejar arrays en query string
+                                        <div class="form-group collection-parameter" data-param-name="@param.Name" data-param-type="@param.CollectionElementType">
+                                            <label>
+                                                @param.Name (@(param.CollectionElementType + "[]")) - @(param.IsRequired ? "Required" : "Optional")
+                                                <button type="button" class="btn-add-item">+ Add Item</button>
+                                            </label>
+                                            <div class="collection-items">
+                                                @{
+                                                    var items = Model.TestInput.Collections.ContainsKey(param.Name)
+                                                    ? Model.TestInput.Collections[param.Name]
+                                                    : new List<string>();
+
+                                                    for(int i = 0; i < items.Count; i++)
+                                                    {
+                                                        <div class="collection-item">
+                                                            <input type="text"
+                                                                   name="TestInput.Collections[@param.Name][@i]"
+                                                                   value="@items[i]"
+                                                                   placeholder="@param.CollectionElementType" />
+                                                            <button type="button" class="btn-remove-item">×</button>
+                                                        </div>
+                                                    }
+                                                }
+                                            </div>
+                                        </div>
                                     }
                                     else
                                     {
@@ -799,6 +827,56 @@
             document.getElementById(`${tabName}-tab`).classList.add('active');
         }
 
+                function setupCollectionParameters() {
+            // Manejar agregar nuevos elementos a colecciones
+            document.querySelectorAll('.btn-add-item').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const container = this.closest('.collection-parameter');
+                    const itemsContainer = container.querySelector('.collection-items');
+                    const paramName = container.dataset.paramName;
+                    const paramType = container.dataset.paramType;
+                    const itemCount = itemsContainer.querySelectorAll('.collection-item').length;
+
+                    const newItem = document.createElement('div');
+                    newItem.className = 'collection-item';
+                    newItem.innerHTML = `
+                        <input type="text"
+                               name="TestInput.Collections[${paramName}][${itemCount}]"
+                               placeholder="${paramType}" />
+                        <button type="button" class="btn-remove-item">×</button>
+                    `;
+
+                    itemsContainer.appendChild(newItem);
+
+                    // Configurar el evento de eliminación para el nuevo elemento
+                    newItem.querySelector('.btn-remove-item').addEventListener('click', function() {
+                        newItem.remove();
+                        reindexCollectionItems(container);
+                    });
+                });
+            });
+
+            // Manejar eliminación de elementos de colecciones
+            document.querySelectorAll('.btn-remove-item').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const item = this.closest('.collection-item');
+                    const container = item.closest('.collection-parameter');
+                    item.remove();
+                    reindexCollectionItems(container);
+                });
+            });
+        }
+
+        function reindexCollectionItems(container) {
+            const items = container.querySelectorAll('.collection-item');
+            items.forEach((item, index) => {
+                const input = item.querySelector('input');
+                const oldName = input.name;
+                const paramName = oldName.match(/TestInput\.Collections\[(.*?)\]/)[1];
+                input.name = `TestInput.Collections[${paramName}][${index}]`;
+            });
+        }
+
         document.addEventListener("DOMContentLoaded", function () {
             initAuthFields();
             setupModelsTabs();
@@ -812,6 +890,7 @@
             initMenu();
             setupDocumentationTabs();
             scrollToSelectedEndpoint();
+            setupCollectionParameters();
         });
     </script>
 </body>
