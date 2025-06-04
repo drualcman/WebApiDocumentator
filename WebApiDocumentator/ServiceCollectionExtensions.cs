@@ -13,6 +13,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMetadataProvider, ControllerMetadataProvider>();
         services.AddSingleton<CompositeMetadataProvider>();
         services.AddScoped<EndpointService>();
+        services.AddScoped<AuthenticationHandler>();
+        services.AddScoped<UrlBuilder>();
+        services.AddScoped<FormContentBuilder>();
+        services.AddScoped<ContentBuilder>();
+        services.AddScoped<RequestBuilder>();
+        services.AddScoped<ResponseProcessor>();
         services.AddScoped<RequestProcessor>();
         services.AddRazorPages(options =>
         {
