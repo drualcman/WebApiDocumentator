@@ -5,13 +5,11 @@ internal static class TypeNameHelper
     {
         if(type == null)
             return "Unknown";
-
         if(type.IsGenericType)
         {
             var genericArgs = string.Join(", ", type.GetGenericArguments().Select(GetFriendlyTypeName));
             return $"{type.Name.Split('`')[0]}<{genericArgs}>";
         }
-
         return type.Name;
     }
 }

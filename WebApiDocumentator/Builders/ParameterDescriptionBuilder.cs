@@ -140,20 +140,6 @@ internal class ParameterDescriptionBuilder
             }
         }
 
-        //// Generar descripción solo para parámetros válidos
-        //foreach(var param in method.GetParameters())
-        //{
-        //    if(!IsInvalidParameterName(param.Name) && validParameterNames.Contains(param.Name))
-        //    {
-        //        var paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name);
-        //        if(!string.IsNullOrWhiteSpace(paramDescription))
-        //        {
-        //            var paramType = TypeNameHelper.GetFriendlyTypeName(param.ParameterType);
-        //            descriptionBuilder.AppendLine($"{param.Name} ({paramType}): {paramDescription.Trim().TrimEnd('.')}");
-        //        }
-        //    }
-        //}
-
         var returns = XmlDocumentationHelper.GetXmlReturns(_xmlDocs, method);
         if(!string.IsNullOrWhiteSpace(returns))
         {

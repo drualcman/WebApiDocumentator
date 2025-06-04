@@ -27,7 +27,6 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
     {
         var endpoints = new List<ApiEndpointInfo>();
         var excludedRoutes = new[] { "/openapi" };
-
         var endpointToTrace = _endpointDataSource.Endpoints
             .OfType<RouteEndpoint>()
             .Where(e =>
@@ -35,53 +34,40 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                 !e.Metadata.OfType<ControllerActionDescriptor>().Any() &&
                 !excludedRoutes.Any(excluded => e.RoutePattern.RawText?.StartsWith(excluded, StringComparison.OrdinalIgnoreCase) == true))
             .ToList();
-
         foreach(var endpoint in endpointToTrace)
         {
             var httpMethods = endpoint.Metadata
                 .OfType<HttpMethodMetadata>()
                 .FirstOrDefault()?.HttpMethods;
-
             if(httpMethods != null && httpMethods.Count != 0)
             {
                 var methodInfo = endpoint.Metadata
                     .OfType<MethodInfo>()
                     .FirstOrDefault();
-
                 if(methodInfo != null)
                 {
                     var routeParameters = endpoint.RoutePattern.Parameters
                         .Select(p => p.Name)
                         .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
                     var (parameters, description) = _descriptionBuilder.BuildParameters(
                         methodInfo,
                         routeParameters,
                         p => !IsHttpContextOrService(p.ParameterType),
                         endpoint.Metadata);
-
                     // Determinar el tipo de retorno
                     Type returnType = methodInfo.ReturnType;
                     if(returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-                    {
                         returnType = returnType.GetGenericArguments()[0];
-                    }
                     else if(returnType == typeof(Task))
-                    {
                         returnType = typeof(void);
-                    }
 
                     var producesMetadata = endpoint.Metadata
                         .OfType<IProducesResponseTypeMetadata>()
                         .FirstOrDefault();
                     if(producesMetadata != null && producesMetadata.Type != null)
-                    {
                         returnType = producesMetadata.Type;
-                    }
-
                     var returnSchema = _schemaGenerator.GenerateJsonSchema(returnType, new HashSet<Type>());
                     var exampleJson = _schemaGenerator.GetExampleAsJsonString(returnSchema);
-
                     if(typeof(IResult).IsAssignableFrom(methodInfo.ReturnType))
                     {
                         var resultType = InferResultType(methodInfo, endpoint.Metadata);
@@ -92,14 +78,10 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                             exampleJson = _schemaGenerator.GetExampleAsJsonString(returnSchema);
                         }
                     }
-
                     // Clean up summary to avoid compiler-generated names
                     var summary = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, methodInfo)?.Trim().TrimEnd('.');
                     if(string.IsNullOrWhiteSpace(summary) || methodInfo.Name.Contains("<") || methodInfo.Name.Contains("b__"))
-                    {
                         summary = $"{httpMethods[0]} {endpoint.RoutePattern.RawText}";
-                    }
-
                     // Remove parameter details from description to avoid redundancy
                     var cleanDescription = description;
                     if(!string.IsNullOrWhiteSpace(description))
@@ -110,7 +92,6 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                             cleanDescription = description.Substring(0, paramIndex).Trim();
                         }
                     }
-
                     var endpointInfo = new ApiEndpointInfo
                     {
                         Id = EndpointHelper.GenerateEndpointId(httpMethods[0], endpoint.RoutePattern.RawText?.ToLowerInvariant() ?? ""),
@@ -123,12 +104,10 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                         ReturnSchema = returnSchema,
                         ExampleJson = exampleJson
                     };
-
                     endpoints.Add(endpointInfo);
                 }
             }
         }
-
         return endpoints;
     }
 
@@ -145,12 +124,8 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
         var producesMetadata = metadata
             .OfType<IProducesResponseTypeMetadata>()
             .FirstOrDefault();
-
         if(producesMetadata != null && producesMetadata.Type != null)
-        {
             return producesMetadata.Type;
-        }
-
         if(methodInfo.ReturnType == typeof(IResult))
             return null;
 

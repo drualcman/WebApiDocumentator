@@ -43,18 +43,15 @@ internal class ControllerMetadataProvider : IMetadataProvider
             if(!processedControllers.Contains(controllerType))
             {
                 processedControllers.Add(controllerType);
-
                 var routeAttr = controllerType.GetCustomAttribute<RouteAttribute>();
                 var controllerName = controllerType.Name.EndsWith("Controller", StringComparison.OrdinalIgnoreCase)
                     ? controllerType.Name.Substring(0, controllerType.Name.Length - "Controller".Length).ToLowerInvariant()
                     : controllerType.Name.ToLowerInvariant();
                 var routePrefix = routeAttr?.Template?.Replace("[controller]", controllerName).ToLowerInvariant();
-
                 var methods = controllerType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
                     .Where(m => m.GetCustomAttributes().OfType<HttpMethodAttribute>().Any())
                     .OrderBy(m => m.Name)
                     .ToList();
-
                 foreach(var method in methods)
                 {
                     var paramTypes = string.Join(",", method.GetParameters().Select(p => p.ParameterType.FullName ?? "Unknown"));
@@ -65,7 +62,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
                         var httpAttrs = method.GetCustomAttributes()
                             .OfType<HttpMethodAttribute>()
                             .ToList();
-
                         foreach(var httpAttr in httpAttrs)
                         {
                             var httpMethod = httpAttr.HttpMethods.FirstOrDefault()?.ToUpper() ?? "UNKNOWN";
@@ -103,16 +99,13 @@ internal class ControllerMetadataProvider : IMetadataProvider
                             if(!excludedRoutes.Any(excluded => fullRoute.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)))
                             {
                                 var routeParameters = GetRouteParameters(fullRoute);
-
                                 var (parameters, description) = _descriptionBuilder.BuildParameters(method, routeParameters);
-
                                 // Log si falta descripción o resumen
                                 if(string.IsNullOrWhiteSpace(description))
                                 {
                                     description = $"Handles {httpMethod} requests for {fullRoute}";
                                     _logger.LogWarning("No XML summary found for method {MethodKey}. Using fallback: {Fallback}", methodKey, description);
                                 }
-
                                 // Asegurar descripciones de parámetros
                                 var methodXmlKey = XmlDocumentationHelper.GetXmlMemberName(method);
                                 foreach(var param in parameters)
@@ -127,25 +120,17 @@ internal class ControllerMetadataProvider : IMetadataProvider
                                         }
                                     }
                                 }
-
                                 // Determinar el tipo de retorno
                                 Type returnType = method.ReturnType;
                                 var producesResponse = method.GetCustomAttributes()
                                     .OfType<ProducesResponseTypeAttribute>()
                                     .FirstOrDefault(attr => attr.StatusCode == 200);
                                 if(producesResponse != null && producesResponse.Type != null)
-                                {
                                     returnType = producesResponse.Type;
-                                }
                                 else if(returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-                                {
                                     returnType = returnType.GetGenericArguments()[0];
-                                }
                                 else if(returnType == typeof(Task))
-                                {
                                     returnType = typeof(void);
-                                }
-
                                 var schema = _schemaGenerator.GenerateJsonSchema(returnType, new HashSet<Type>());
                                 var endpoint = new ApiEndpointInfo
                                 {
@@ -184,7 +169,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
             })
             .Where(e => e.ReturnType != "Unknown" || e.Parameters.Any())
             .ToList();
-
         _logger.LogInformation("Total endpoints generated: {Count}", filteredResult.Count);
         return filteredResult;
     }
@@ -213,11 +197,9 @@ internal class ControllerMetadataProvider : IMetadataProvider
         var routeAttr = method.GetCustomAttribute<RouteAttribute>();
         if(routeAttr != null)
             return routeAttr.Template;
-
         var httpAttrs = method.GetCustomAttributes()
             .OfType<HttpMethodAttribute>()
             .ToList();
-
         if(httpAttrs.Any())
         {
             if(httpAttrs.Count > 1)
@@ -228,7 +210,6 @@ internal class ControllerMetadataProvider : IMetadataProvider
             }
             return httpAttrs.First().Template ?? "";
         }
-
         return "";
     }
 }

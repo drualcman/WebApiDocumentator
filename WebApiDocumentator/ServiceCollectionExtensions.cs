@@ -8,10 +8,10 @@ public static class ServiceCollectionExtensions
         DocumentatorOptions customOptions = new();
         configure(customOptions);
         services.Configure(configure);
-        services.AddSingleton<IParameterSourceResolver, ParameterSourceResolver>();
-        services.AddSingleton<IMetadataProvider, MinimalApiMetadataProvider>();
-        services.AddSingleton<IMetadataProvider, ControllerMetadataProvider>();
-        services.AddSingleton<CompositeMetadataProvider>();
+        services.AddScoped<IParameterSourceResolver, ParameterSourceResolver>();
+        services.AddScoped<IMetadataProvider, MinimalApiMetadataProvider>();
+        services.AddScoped<IMetadataProvider, ControllerMetadataProvider>();
+        services.AddScoped<CompositeMetadataProvider>();
         services.AddScoped<EndpointService>();
         services.AddScoped<AuthenticationHandler>();
         services.AddScoped<UrlBuilder>();

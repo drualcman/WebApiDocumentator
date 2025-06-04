@@ -27,24 +27,20 @@ internal class CompositeMetadataProvider
     {
         var allEndpoints = GetEndpoints();
         var rootNodes = new List<EndpointGroupNode>();
-
         // Agrupar endpoints por el primer segmento o "root" para rutas sin prefijo
         var groupedByPrefix = allEndpoints
             .GroupBy(e => GetRouteGroupKey(e.Route))
             .OrderBy(g => g.Key == "root" ? "" : g.Key); // Priorizar "root"
-
         foreach(var group in groupedByPrefix)
         {
             var prefix = group.Key;
             var groupNode = new EndpointGroupNode { Name = prefix == "root" ? "/" : prefix };
-
             // Procesar los endpoints del grupo
             var endpointsByPath = group
                 .GroupBy(e => GetFullPathWithoutPrefix(e.Route, prefix == "root" ? "" : prefix))
                 .ToDictionary(
                     g => g.Key,
                     g => g.OrderBy(e => e.HttpMethod).ToList());
-
             // Agrupar por el siguiente segmento significativo
             var subGroups = endpointsByPath
                 .GroupBy(kvp => GetNextSegment(kvp.Key))
@@ -65,9 +61,7 @@ internal class CompositeMetadataProvider
                     }
                     continue;
                 }
-
                 var subNode = new EndpointGroupNode { Name = subPrefix };
-
                 // Procesar los endpoints del subgrupo
                 var subEndpointsByPath = subGroup.Value
                     .GroupBy(e => GetFullPathWithoutPrefix(e.Route, $"{prefix}/{subPrefix}".TrimStart('/')))
@@ -90,10 +84,8 @@ internal class CompositeMetadataProvider
                         }
                         continue;
                     }
-
                     var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
                     var currentNode = subNode;
-
                     // Navegar hasta el penúltimo segmento
                     for(int i = 0; i < segments.Length - 1; i++)
                     {
@@ -107,8 +99,6 @@ internal class CompositeMetadataProvider
                         }
                         currentNode = childNode;
                     }
-
-                    // Último segmento
                     var lastSegment = CleanSegment(segments.Last());
                     var sameLastSegmentEndpoints = subEndpointsByPath
                         .Where(kvp => kvp.Key.EndsWith($"/{lastSegment}", StringComparison.OrdinalIgnoreCase) ||
@@ -142,7 +132,6 @@ internal class CompositeMetadataProvider
                         }
                     }
                 }
-
                 // Colapsar subNode si tiene un solo endpoint y no tiene hijos
                 if(subNode.Endpoints.Count == 1 && subNode.Children.Count == 0)
                 {
@@ -157,8 +146,6 @@ internal class CompositeMetadataProvider
 
             rootNodes.Add(groupNode);
         }
-
-        // Ordenar nodos y endpoints
         SortNodes(rootNodes);
         return rootNodes;
     }
