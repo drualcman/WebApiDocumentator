@@ -219,9 +219,9 @@
                                         <div class="form-group">
                                             <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label>
                                             <textarea name="TestInput.Parameters[@param.Name]"
-                                      rows="@rows"
-                                      placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value
-                </textarea>
+                                                                  rows="@rows"
+                                                                  placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value
+                                            </textarea>
                                         </div>
                                     }
                                     else if(param.Source == "Form")
@@ -251,10 +251,11 @@
                                                            value="@currentValue"
                                                            placeholder="yyyy-MM-ddTHH:mm" />
                                                 }
-                                                else if(prop.PropertyType == typeof(byte[]) || prop.PropertyType.Name == "IFormFile")
+                                                else if(prop.PropertyType == typeof(byte[]) || 
+                                                        prop.PropertyType.Name == "IFormFile" || 
+                                                        prop.PropertyType.Name == "IFormFileCollection")
                                                 {
-                                                    fullKey = $"TestInput.Files[{propName}]";
-                                                    <p>Parametro @fullKey</p>
+                                                    fullKey = $"TestInput.Files[{param.Name}]";
                                                     <input type="file" name="@fullKey" />
                                                 }
                                                 else

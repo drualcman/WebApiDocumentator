@@ -12,6 +12,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMetadataProvider, MinimalApiMetadataProvider>();
         services.AddSingleton<IMetadataProvider, ControllerMetadataProvider>();
         services.AddSingleton<CompositeMetadataProvider>();
+        services.AddScoped<EndpointService>();
+        services.AddScoped<RequestProcessor>();
         services.AddRazorPages(options =>
         {
             if(!string.IsNullOrWhiteSpace(customOptions.DocsBaseUrl))

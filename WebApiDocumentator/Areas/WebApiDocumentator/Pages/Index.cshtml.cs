@@ -2,11 +2,10 @@
 
 internal class IndexModel : PageModel
 {
-    private readonly CompositeMetadataProvider _metadataProvider;
-    private readonly DocumentatorOptions _options;
-    private readonly HttpClient _httpClient;
-    private readonly IApiDescriptionGroupCollectionProvider _provider;
+    private readonly EndpointService _endpointService;
+    private readonly RequestProcessor _requestProcessor;
     private readonly ILogger<IndexModel> _logger;
+    private readonly DocumentatorOptions _options;
 
     public List<EndpointGroupNode> Groups { get; private set; } = new();
     public ApiEndpointInfo? SelectedEndpoint { get; private set; }
@@ -23,133 +22,45 @@ internal class IndexModel : PageModel
     public string? RequestBodyJson { get; private set; }
     public string? ExampleBodyJson { get; private set; }
     public string? ResponseCodeDescription { get; private set; }
-    public string FormEnctype
-    {
-        get
-        {
-            foreach(ApiParameterInfo param in SelectedEndpoint?.Parameters ?? Enumerable.Empty<ApiParameterInfo>())
-            {
-                if(param.Source == "Form")
-                {
-                    Type? type = GetTypeFromName(param.Type);
-                    if(type == typeof(byte[]) || type?.Name == "IFormFile")
-                    {
-                        return "multipart/form-data";
-                    }
-
-                    if(type != null)
-                    {
-                        foreach(PropertyInfo prop in GetFormProperties(param.Type))
-                        {
-                            if(prop.PropertyType == typeof(byte[]) || prop.PropertyType.Name == "IFormFile")
-                            {
-                                return "multipart/form-data";
-                            }
-                        }
-                    }
-                }
-            }
-
-            return "application/x-www-form-urlencoded";
-        }
-    }
-
+    public string FormEnctype => _endpointService.GetFormEnctype(SelectedEndpoint);
 
     public IndexModel(
-        CompositeMetadataProvider metadataProvider,
-        IHttpClientFactory httpClientFactory,
-        IApiDescriptionGroupCollectionProvider provider,
+        EndpointService endpointService,
+        RequestProcessor requestProcessor,
         IOptions<DocumentatorOptions> options,
         ILogger<IndexModel> logger)
     {
-        _metadataProvider = metadataProvider;
-        _httpClient = httpClientFactory.CreateClient("WebApiDocumentator");
+        _endpointService = endpointService;
+        _requestProcessor = requestProcessor;
         _options = options.Value;
-        _provider = provider;
         _logger = logger;
     }
 
     public void OnGet([FromQuery] string? id)
     {
-        Groups = _metadataProvider.GetGroupedEndpoints();
-
-        try
-        {
-            // Cargar Authentication desde la sesión
-            var authJson = HttpContext.Session.GetString("AuthenticationInput");
-            if(!string.IsNullOrEmpty(authJson))
-            {
-                try
-                {
-                    TestInput.Authentication = JsonSerializer.Deserialize<AuthenticationInput>(authJson) ?? new AuthenticationInput();
-                    _logger.LogDebug("Loaded Authentication from session: Type={AuthType}", TestInput.Authentication.Type);
-                }
-                catch(JsonException ex)
-                {
-                    _logger.LogWarning("Failed to deserialize Authentication from session: {Error}", ex.Message);
-                    TestInput.Authentication = new AuthenticationInput();
-                }
-            }
-        }
-        catch(Exception ex)
-        {
-            _logger.LogWarning("Failed use session: {Error}", ex.Message);
-            TestInput.Authentication = new AuthenticationInput();
-        }
+        Groups = _endpointService.GetGroupedEndpoints();
+        TestInput.Authentication = _requestProcessor.LoadAuthenticationFromSession(HttpContext.Session);
 
         if(!string.IsNullOrWhiteSpace(id))
         {
-            _logger.LogInformation("Received query Id: {Id}", id);
-            SelectedEndpoint = Groups
-                .SelectMany(g => GetAllEndpoints(g))
-                .FirstOrDefault(e => e.Id == id);
-
-            if(SelectedEndpoint == null)
+            SelectedEndpoint = _endpointService.FindEndpointById(Groups, id);
+            if(SelectedEndpoint != null)
             {
-                _logger.LogWarning("Endpoint with Id {Id} not found. Available endpoints: {Endpoints}",
-                    id,
-                    string.Join("; ", Groups.SelectMany(g => GetAllEndpoints(g))
-                        .Select(e => $"Id={e.Id}, Method={e.HttpMethod}, Route={e.Route}")));
-            }
-            else
-            {
-                _logger.LogDebug("Found endpoint: Id={Id}, Method={Method}, Route={Route}",
-                    SelectedEndpoint.Id, SelectedEndpoint.HttpMethod, SelectedEndpoint.Route);
                 ExampleBodyJson = SelectedEndpoint.ExampleJson;
-                ExampleRequestUrl = GenerateExampleRequestUrl(SelectedEndpoint);
-                // Generar el JSON del cuerpo de la solicitud
-                RequestBodyJson = GenerateRequestBodyJson(SelectedEndpoint);
+                ExampleRequestUrl = _endpointService.GenerateExampleRequestUrl(SelectedEndpoint);
+                RequestBodyJson = _endpointService.GenerateRequestBodyJson(SelectedEndpoint);
             }
         }
         else
         {
-            _logger.LogInformation("No Id provided in query. Displaying default view.");
-            _logger.LogDebug("Available endpoints: {Endpoints}",
-                string.Join("; ", Groups.SelectMany(g => GetAllEndpoints(g))
-                    .Select(e => $"Id={e.Id}, Method={e.HttpMethod}, Route={e.Route}")));
-            ExampleBodyJson = JsonSerializer.Serialize(Groups, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
+            ExampleBodyJson = JsonSerializer.Serialize(Groups, new JsonSerializerOptions { WriteIndented = true });
         }
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if(string.IsNullOrWhiteSpace(TestInput.Method) || string.IsNullOrWhiteSpace(TestInput.Route))
-        {
-            ModelState.AddModelError("", "Method and route are required.");
-            TestResponse = "Method and route are required.";
-            return Page();
-        }
-
-        Groups = _metadataProvider.GetGroupedEndpoints();
-
-        SelectedEndpoint = Groups
-            .SelectMany(g => GetAllEndpoints(g))
-            .FirstOrDefault(e => e.Id == TestInput.Id ||
-                                (e.HttpMethod.Equals(TestInput.Method, StringComparison.OrdinalIgnoreCase) &&
-                                 e.Route.Equals(TestInput.Route, StringComparison.OrdinalIgnoreCase)));
+        Groups = _endpointService.GetGroupedEndpoints();
+        SelectedEndpoint = _endpointService.FindEndpointById(Groups, TestInput.Id);
 
         if(SelectedEndpoint == null)
         {
@@ -159,450 +70,23 @@ internal class IndexModel : PageModel
         }
 
         ExampleBodyJson = SelectedEndpoint.ExampleJson;
-        ExampleRequestUrl = GenerateExampleRequestUrl(SelectedEndpoint);
-        // Generar el JSON del cuerpo de la solicitud
-        RequestBodyJson = GenerateRequestBodyJson(SelectedEndpoint);
+        ExampleRequestUrl = _endpointService.GenerateExampleRequestUrl(SelectedEndpoint);
+        RequestBodyJson = _endpointService.GenerateRequestBodyJson(SelectedEndpoint);
 
-        // Validar parámetros requeridos
-        if(!SelectedEndpoint.Parameters.Any(p => p.Source == "Form"))
-        {
-            foreach(var param in SelectedEndpoint.Parameters.Where(p => p.IsRequired))
-            {
-                if(param.IsCollection)
-                {
-                    // Validación para parámetros de colección
-                    if(!TestInput.Collections.ContainsKey(param.Name) ||
-                       TestInput.Collections[param.Name] == null ||
-                       !TestInput.Collections[param.Name].Any())
-                    {
-                        ModelState.AddModelError($"TestInput.Collections[{param.Name}]", $"Parameter {param.Name} is required and must have at least one item.");
-                    }
-                    else
-                    {
-                        // Validar cada elemento individual del array
-                        var collection = TestInput.Collections[param.Name];
-                        for(int i = 0; i < collection.Count; i++)
-                        {
-                            if(string.IsNullOrWhiteSpace(collection[i]))
-                            {
-                                ModelState.AddModelError($"TestInput.Collections[{param.Name}][{i}]", $"Item {i + 1} of {param.Name} cannot be empty.");
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    // Validación normal para parámetros no colección
-                    if(!TestInput.Parameters.ContainsKey(param.Name) || string.IsNullOrEmpty(TestInput.Parameters[param.Name]))
-                    {
-                        ModelState.AddModelError($"TestInput.Parameters[{param.Name}]", $"Parameter {param.Name} is required.");
-                    }
-                }
-            }
-        }
-
-        // Validar autenticación
-        if(TestInput.Authentication.Type == AuthenticationType.Bearer)
-        {
-            if(string.IsNullOrWhiteSpace(TestInput.Authentication.BearerToken))
-            {
-                ModelState.AddModelError("TestInput.BearerToken", "Bearer token is required.");
-            }
-        }
-        else if(TestInput.Authentication.Type == AuthenticationType.Basic)
-        {
-            if(string.IsNullOrWhiteSpace(TestInput.Authentication.BasicUsername))
-            {
-                ModelState.AddModelError("TestInput.BasicUsername", "Username is required for Basic authentication.");
-            }
-            if(string.IsNullOrWhiteSpace(TestInput.Authentication.BasicPassword))
-            {
-                ModelState.AddModelError("TestInput.BasicPassword", "Password is required for Basic authentication.");
-            }
-        }
-        else if(TestInput.Authentication.Type == AuthenticationType.ApiKey && string.IsNullOrWhiteSpace(TestInput.Authentication.ApiKeyValue))
-        {
-            ModelState.AddModelError("TestInput.Authentication.ApiKeyValue", "API Key is required when API Key authentication is selected.");
-        }
-
-        var authJson = JsonSerializer.Serialize(TestInput.Authentication);
-        HttpContext.Session.SetString("AuthenticationInput", authJson);
+        await _requestProcessor.ValidateInput(SelectedEndpoint, TestInput, Request, ModelState);
+        _requestProcessor.SaveAuthenticationToSession(HttpContext.Session, TestInput.Authentication);
 
         if(!ModelState.IsValid)
         {
             TestResponse = $"Invalid ModelState.";
-            _logger.LogWarning("Invalid ModelState. Errors: {Errors}",
-               string.Join("; ", ModelState.SelectMany(e => e.Value.Errors.Select(err => $"{e.Key}: {err.ErrorMessage}"))));
             return Page();
         }
 
-        var requestUrl = TestInput.Route;
-
-        // Reemplazar parámetros de ruta
-        foreach(var param in SelectedEndpoint.Parameters.Where(p => p.Source == "Path" && TestInput.Parameters.ContainsKey(p.Name)))
-        {
-            var paramValue = HttpUtility.UrlEncode(TestInput.Parameters[param.Name] ?? "");
-            requestUrl = requestUrl.Replace($"{{{param.Name}}}", paramValue, StringComparison.OrdinalIgnoreCase);
-            _logger.LogInformation("Replaced route parameter: {{{ParamName}}} -> {ParamValue}", param.Name, paramValue);
-        }
-
-        // Añadir parámetros de consulta
-        // Añadir parámetros de consulta
-        var queryParams = new List<string>();
-
-        foreach(var param in SelectedEndpoint.Parameters.Where(p => p.Source == "Query"))
-        {
-            if(param.IsCollection)
-            {
-                // Manejar parámetros de colección
-                if(TestInput.Collections.TryGetValue(param.Name, out var collectionValues) && collectionValues != null)
-                {
-                    foreach(var value in collectionValues)
-                    {
-                        if(!string.IsNullOrEmpty(value))
-                        {
-                            queryParams.Add($"{HttpUtility.UrlEncode(param.Name)}={HttpUtility.UrlEncode(value)}");
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // Manejar parámetros normales
-                if(TestInput.Parameters.TryGetValue(param.Name, out var paramValue) && !string.IsNullOrEmpty(paramValue))
-                {
-                    queryParams.Add($"{HttpUtility.UrlEncode(param.Name)}={HttpUtility.UrlEncode(paramValue)}");
-                }
-            }
-        }
-
-        // Añadir encabezados de autenticación
-        if(TestInput.Authentication.Type == AuthenticationType.Bearer)
-        {
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", TestInput.Authentication.BearerToken);
-            _logger.LogInformation("Added Bearer authentication header");
-        }
-        else if(TestInput.Authentication.Type == AuthenticationType.Basic)
-        {
-            var credentials = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{TestInput.Authentication.BasicUsername}:{TestInput.Authentication.BasicPassword}"));
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
-            _logger.LogInformation("Added Basic authentication header");
-        }
-        else if(TestInput.Authentication.Type == AuthenticationType.ApiKey && !string.IsNullOrEmpty(TestInput.Authentication.ApiKeyValue))
-        {
-            if(TestInput.Authentication.ApiKeyLocation == "Header")
-            {
-                var headerName = string.IsNullOrEmpty(TestInput.Authentication.ApiKeyName) ? "X-Api-Key" : TestInput.Authentication.ApiKeyName;
-                _httpClient.DefaultRequestHeaders.Add(headerName, TestInput.Authentication.ApiKeyValue);
-                _logger.LogInformation("Added API Key to header: {HeaderName}={HeaderValue}", headerName, TestInput.Authentication.ApiKeyValue);
-            }
-            else if(TestInput.Authentication.ApiKeyLocation == "Query")
-            {
-                var keyName = string.IsNullOrEmpty(TestInput.Authentication.ApiKeyName) ? "apiKey" : TestInput.Authentication.ApiKeyName;
-                queryParams.Add($"{HttpUtility.UrlEncode(keyName)}={HttpUtility.UrlEncode(TestInput.Authentication.ApiKeyValue)}");
-                _logger.LogInformation("Added API Key to query: {KeyName}={KeyValue}", keyName, TestInput.Authentication.ApiKeyValue);
-            }
-        }
-
-        if(queryParams.Any())
-        {
-            requestUrl += "?" + string.Join("&", queryParams);
-        }
-
-        _logger.LogInformation("Request URL: {RequestUrl}", requestUrl);
-
-        _httpClient.BaseAddress = new Uri($"{Request.Scheme}://{Request.Host}{Request.PathBase}");
-
-        var request = new HttpRequestMessage(new HttpMethod(TestInput.Method), requestUrl);
-
-
-        // Añadir cuerpo de la solicitud
-        if(SelectedEndpoint.Parameters.Any(p => p.IsFromBody))
-        {
-            var bodyParam = SelectedEndpoint.Parameters.FirstOrDefault(p => p.IsFromBody);
-            if(TestInput.Parameters.TryGetValue(bodyParam.Name, out string? bodyValue))
-            {
-                try
-                {
-                    var jsonObject = JsonSerializer.Deserialize<object>(bodyValue);
-                    var json = JsonSerializer.Serialize(jsonObject, new JsonSerializerOptions { WriteIndented = true });
-                    request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-                }
-                catch(JsonException)
-                {
-                    ModelState.AddModelError($"TestInput.Parameters[{bodyParam.Name}]", "Body must be valid JSON.");
-                }
-            }
-            else
-            {
-                ModelState.AddModelError("", "Request body is missing for the expected parameter.");
-            }
-        }
-        else if(SelectedEndpoint.Parameters.Any(p => p.Source == "Form"))
-        {
-            IFormCollection form = await Request.ReadFormAsync();
-
-            TestInput.Files = new Dictionary<string, IFormFile>();
-
-            foreach(IFormFile file in form.Files)
-            {
-                // file.Name será: TestInput.Files[profilepicture]
-                string rawKey = file.Name;
-
-                // Intentamos extraer solo la clave dentro del diccionario, por ejemplo: "profilepicture"
-                string? extractedKey = ExtractKeyFromFieldName(rawKey);
-
-                if(!string.IsNullOrWhiteSpace(extractedKey))
-                {
-                    TestInput.Files[extractedKey] = file;
-                }
-
-                _logger.LogInformation("Received file: {Key} ({Length} bytes)", extractedKey, file.Length);
-            }
-
-            bool useMultipart = TestInput.Files != null && TestInput.Files.Count > 0;
-
-            if(useMultipart)
-            {
-                MultipartFormDataContent multipartContent = new MultipartFormDataContent();
-
-                foreach(KeyValuePair<string, string?> parameter in TestInput.Parameters)
-                {
-                    if(!string.IsNullOrWhiteSpace(parameter.Value))
-                    {
-                        multipartContent.Add(new StringContent(parameter.Value), parameter.Key);
-                    }
-                    else
-                    {
-                        ModelState.AddModelError($"TestInput.Parameters[{parameter.Key}]", $"Form parameter {parameter.Key} is required.");
-                    }
-                }
-
-                if(TestInput.Files != null)
-                {
-                    foreach(KeyValuePair<string, IFormFile> filePair in TestInput.Files)
-                    {
-                        if(filePair.Value != null)
-                        {
-                            StreamContent fileContent = new StreamContent(filePair.Value.OpenReadStream());
-                            multipartContent.Add(fileContent, filePair.Key, filePair.Value.FileName);
-                        }
-                    }
-                }
-
-                request.Content = multipartContent;
-                _logger.LogInformation("Added multipart/form-data content");
-            }
-            else
-            {
-                List<KeyValuePair<string, string>> formValues = new List<KeyValuePair<string, string>>();
-
-                foreach(KeyValuePair<string, string?> parameter in TestInput.Parameters)
-                {
-                    if(!string.IsNullOrWhiteSpace(parameter.Value))
-                    {
-                        formValues.Add(new KeyValuePair<string, string>(parameter.Key, parameter.Value));
-                    }
-                    else
-                    {
-                        ModelState.AddModelError($"TestInput.Parameters[{parameter.Key}]", $"Form parameter {parameter.Key} is required.");
-                    }
-                }
-
-                request.Content = new FormUrlEncodedContent(formValues);
-                _logger.LogInformation("Added application/x-www-form-urlencoded content");
-            }
-        }
-
-        if(!ModelState.IsValid)
-        {
-            TestResponse = "Please. Check data.";
-            return Page();
-        }
-
-
-        try
-        {
-            var response = await _httpClient.SendAsync(request);
-            ResponseCodeDescription = $"[{(int)response.StatusCode}] {response.ReasonPhrase}".Trim();
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            if(!string.IsNullOrWhiteSpace(responseContent))
-            {
-                try
-                {
-                    var formattedJson = JsonSerializer.Serialize(JsonSerializer.Deserialize<object>(responseContent), new JsonSerializerOptions { WriteIndented = true });
-                    TestResponse = formattedJson;
-                }
-                catch
-                {
-                    TestResponse = responseContent;
-                }
-            }
-
-            if(!response.IsSuccessStatusCode)
-            {
-                if(string.IsNullOrWhiteSpace(TestResponse))
-                    TestResponse = $"Request error: {(int)response.StatusCode} {response.ReasonPhrase}".Trim();
-                if(!string.IsNullOrWhiteSpace(responseContent))
-                {
-                    try
-                    {
-                        var problemDetails = JsonSerializer.Deserialize<JsonDocument>(responseContent);
-                        if(problemDetails != null && problemDetails.RootElement.TryGetProperty("errors", out var errors))
-                        {
-                            var errorList = errors.Deserialize<JsonObject>();
-                            foreach(var error in errorList)
-                            {
-                                var paramName = error.Key;
-                                var errorMessages = error.Value as JsonArray;
-                                if(errorMessages != null && SelectedEndpoint.Parameters.Any(p => p.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase)))
-                                {
-                                    foreach(var errorMessage in errorMessages)
-                                    {
-                                        if(errorMessage != null)
-                                        {
-                                            ModelState.AddModelError($"TestInput.Parameters[{paramName}]", errorMessage.ToString());
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    ModelState.AddModelError("", $"Request error: {error.Key} - {error.Value}");
-                                }
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        TestResponse += $"\nRequest error: {(int)response.StatusCode} {response.ReasonPhrase}. {responseContent}".Trim();
-                    }
-                }
-                else
-
-                    ModelState.AddModelError("", TestResponse);
-            }
-        }
-        catch(HttpRequestException ex)
-        {
-            TestResponse = $"Error sending request: {ex.Message}";
-            ModelState.AddModelError("", $"Error sending request: {ex.Message}");
-        }
+        var result = await _requestProcessor.ProcessRequestAsync(SelectedEndpoint, TestInput, Request, ModelState);
+        TestResponse = result.ResponseContent;
+        ResponseCodeDescription = result.ResponseCodeDescription;
 
         return Page();
-    }
-
-    private string? ExtractKeyFromFieldName(string fieldName)
-    {
-        int start = fieldName.IndexOf('[');
-        int end = fieldName.IndexOf(']');
-        if(start >= 0 && end > start)
-        {
-            return fieldName.Substring(start + 1, end - start - 1);
-        }
-        return null;
-    }
-
-
-    // Nuevo método para generar la URL de ejemplo con parámetros de ruta y consulta
-    private string GenerateExampleRequestUrl(ApiEndpointInfo endpoint)
-    {
-        var generator = new JsonSchemaGenerator();
-        var url = endpoint.Route;
-
-        // Reemplazar parámetros de ruta
-        foreach(var param in endpoint.Parameters.Where(p => p.Source == "Path"))
-        {
-            var exampleValue = GenerateParameterExample(param, generator);
-            url = url.Replace($"{{{param.Name}}}", HttpUtility.UrlEncode(exampleValue), StringComparison.OrdinalIgnoreCase);
-        }
-
-        // Añadir parámetros de consulta
-        var queryParams = new List<string>();
-
-        foreach(var param in endpoint.Parameters.Where(p => p.Source == "Query"))
-        {
-            if(param.IsCollection)
-            {
-                // Ejemplo para colecciones - agregamos dos valores de ejemplo
-                var exampleValue1 = GenerateParameterExample(param, generator);
-                var exampleValue2 = GenerateParameterExample(param, generator);
-                queryParams.Add($"{HttpUtility.UrlEncode(param.Name)}={HttpUtility.UrlEncode(exampleValue1)}");
-                queryParams.Add($"{HttpUtility.UrlEncode(param.Name)}={HttpUtility.UrlEncode(exampleValue2)}");
-            }
-            else
-            {
-                var exampleValue = GenerateParameterExample(param, generator);
-                queryParams.Add($"{HttpUtility.UrlEncode(param.Name)}={HttpUtility.UrlEncode(exampleValue)}");
-            }
-        }
-
-        if(queryParams.Any())
-        {
-            url += "?" + string.Join("&", queryParams);
-        }
-
-        return url;
-    }
-
-    // Método auxiliar para generar valores de ejemplo para parámetros
-    private string GenerateParameterExample(ApiParameterInfo param, JsonSchemaGenerator generator)
-    {
-        // Si es una colección, usamos el tipo de elemento para generar el ejemplo
-        var typeToUse = param.IsCollection ? param.CollectionElementType : param.Type;
-
-        if(param.Schema != null)
-        {
-            var example = generator.GetExampleAsJsonString(param.Schema);
-            if(!string.IsNullOrEmpty(example))
-            {
-                return example.Trim('"');
-            }
-        }
-
-        // Valores predeterminados si no hay esquema o ejemplo
-        return typeToUse switch
-        {
-            "string" => "example",
-            "int" or "integer" => "123",
-            "float" or "double" or "number" => "123.45",
-            "bool" or "boolean" => "true",
-            _ => "example"
-        };
-    }
-
-
-    // Método auxiliar para generar el JSON del cuerpo de la solicitud
-    private string? GenerateRequestBodyJson(ApiEndpointInfo endpoint)
-    {
-        var bodyParam = endpoint.Parameters.FirstOrDefault(p => p.IsFromBody);
-        if(bodyParam != null && bodyParam.Schema != null)
-        {
-            var generator = new JsonSchemaGenerator();
-            return generator.GetExampleAsJsonString(bodyParam.Schema);
-        }
-        return null;
-    }
-
-    public string GetApiVersion()
-    {
-        return $"v{_provider.ApiDescriptionGroups.Version + 1}";
-    }
-
-    public string? GenerateFlatSchema(Dictionary<string, object>? schema)
-    {
-        JsonSchemaGenerator generator = new JsonSchemaGenerator();
-        return generator.GetExampleAsJsonString(schema);
-    }
-
-    private IEnumerable<ApiEndpointInfo> GetAllEndpoints(EndpointGroupNode node)
-    {
-        var endpoints = new List<ApiEndpointInfo>(node.Endpoints);
-        foreach(var child in node.Children)
-        {
-            endpoints.AddRange(GetAllEndpoints(child));
-        }
-        return endpoints;
     }
 
     public IActionResult OnPostClearAuth()
@@ -612,38 +96,17 @@ internal class IndexModel : PageModel
         return new JsonResult(new { success = true });
     }
 
+    public string GetApiVersion() => _endpointService.GetApiVersion();
+
+    public string? GenerateFlatSchema(Dictionary<string, object>? schema) => _endpointService.GenerateFlatSchema(schema);
+
+    public IEnumerable<PropertyInfo> GetFormProperties(string typeName) => _endpointService.GetFormProperties(typeName);
+
+    public Type? GetTypeFromName(string typeName) => _endpointService.GetTypeFromName(typeName);
+
     public string? HttpMethodFormatted => SelectedEndpoint != null
-    ? char.ToUpper(SelectedEndpoint.HttpMethod[0]) + SelectedEndpoint.HttpMethod.Substring(1).ToLower()
-    : "";
+        ? char.ToUpper(SelectedEndpoint.HttpMethod[0]) + SelectedEndpoint.HttpMethod.Substring(1).ToLower()
+        : "";
 
-    public int CountLinesInSchema(Dictionary<string, object>? schema)
-    {
-        int result = 5;
-        if(schema != null)
-        {
-            var json = GenerateFlatSchema(schema);
-            if(!string.IsNullOrWhiteSpace(json))
-            {
-                result = json.Split('\n').Length;
-            }
-        }
-        return result;
-    }
-
-    public Type? GetTypeFromName(string typeName)
-    {
-        return AppDomain.CurrentDomain
-            .GetAssemblies()
-            .SelectMany(a => a.GetTypes())
-            .FirstOrDefault(t => t.Name == typeName);
-    }
-
-    public IEnumerable<PropertyInfo> GetFormProperties(string typeName)
-    {
-        Type? type = GetTypeFromName(typeName);
-        if(type == null)
-            return Enumerable.Empty<PropertyInfo>();
-
-        return type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-    }
+    public int CountLinesInSchema(Dictionary<string, object>? schema) => _endpointService.CountLinesInSchema(schema);
 }

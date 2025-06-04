@@ -47,4 +47,20 @@ public class TestController : ControllerBase
     {
         return string.Join(",", names);
     }
+
+    /// <summary>
+    /// con archivos
+    /// </summary>
+    /// <param name="names">Names to return</param>
+    /// <param name="files">Send files</param>
+    /// <returns></returns>
+    [HttpPost("arrays")]
+    public string PostWithQueryArrays([FromQuery] string[] names, [FromForm] IFormFileCollection files)
+    {
+        string result = string.Join(",", names);
+        string fileNames = files != null && files.Count > 0
+        ? string.Join(",", files.Select(f => f.FileName))
+        : "No files uploaded";
+        return $"{result} with files {fileNames}";
+    }
 }
