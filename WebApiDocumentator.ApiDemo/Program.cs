@@ -79,6 +79,24 @@ app.MapPost("/algo/{id}", (int id, DocumentatorOptions data, IHttpClientFactory 
         return data;
     });
 
+/// <summary>
+/// Trabajando con fechas
+/// </summary>
+/// <returns>Devuelve la fecha enviado en fromato largo.</returns>
+app.MapGet("/fechas", ([FromQuery] DateTime fecha) =>
+    {
+        return fecha.ToLongDateString();
+    });
+
+/// <summary>
+/// No content
+/// </summary>
+/// <returns>Devuelve la fecha enviado en fromato largo.</returns>
+app.MapPost("/fechas", ([FromQuery] DateTime? fecha) =>
+    {
+        return Results.NoContent();
+    });
+
 
 app.Run();
 

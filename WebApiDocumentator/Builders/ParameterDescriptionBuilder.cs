@@ -22,12 +22,13 @@ internal class ParameterDescriptionBuilder
         Func<ParameterInfo, bool>? parameterFilter = null,
         EndpointMetadataCollection? metadata = null)
     {
-        var parameters = new List<ApiParameterInfo>();
-        var methodXmlKey = XmlDocumentationHelper.GetXmlMemberName(method);
-        var descriptionBuilder = new StringBuilder();
-        var validParameterNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        List<ApiParameterInfo> parameters = new List<ApiParameterInfo>();
 
-        foreach(var param in method.GetParameters())
+        string methodXmlKey = XmlDocumentationHelper.GetXmlMemberName(method);
+        StringBuilder descriptionBuilder = new StringBuilder();
+        HashSet<string> validParameterNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach(ParameterInfo param in method.GetParameters())
         {
             if(parameterFilter == null || parameterFilter(param))
             {
@@ -37,21 +38,24 @@ internal class ParameterDescriptionBuilder
                     continue;
                 }
 
-                var paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name) ?? "Parameter";
+                string paramDescription = XmlDocumentationHelper.GetXmlParamSummary(_xmlDocs, methodXmlKey, param.Name) ?? "Parameter";
                 paramDescription = paramDescription.Trim().TrimEnd('.');
-                var paramType = TypeNameHelper.GetFriendlyTypeName(param.ParameterType);
-                var paramSource = _parameterSourceResolver.GetParameterSource(param, routeParameters, metadata);
+                string paramType = TypeNameHelper.GetFriendlyTypeName(param.ParameterType);
+                string paramSource = _parameterSourceResolver.GetParameterSource(param, routeParameters, metadata);
 
-                var fromQueryAttr = param.GetCustomAttribute<FromQueryAttribute>();
+                FromQueryAttribute fromQueryAttr = param.GetCustomAttribute<FromQueryAttribute>();
+
+                bool isPrimitive = IsPrimitiveOrFrameworkType(param.ParameterType);
+
                 if(!paramSource.Equals("Service", StringComparison.OrdinalIgnoreCase))
                 {
-                    if(fromQueryAttr != null && !param.ParameterType.IsPrimitive && param.ParameterType != typeof(string))
+                    bool isOptional = IsOptionalParam(param);
+                    if(fromQueryAttr != null && !isPrimitive)
                     {
-                        // Verificar si es una colección
+                        // Handle collections or complex object
                         Type elementType = null;
                         bool isCollection = false;
 
-                        // Primero verificar si es un array
                         if(param.ParameterType.IsArray)
                         {
                             isCollection = true;
@@ -59,7 +63,6 @@ internal class ParameterDescriptionBuilder
                         }
                         else
                         {
-                            // Verificar si es IEnumerable<T> y obtener el tipo genérico
                             var enumerableInterface = param.ParameterType.GetInterfaces()
                                 .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
 
@@ -72,15 +75,16 @@ internal class ParameterDescriptionBuilder
 
                         if(isCollection)
                         {
-                            // Es una colección - crear un parámetro para la colección
-                            var collectionDescription = $"{paramDescription} (collection of {TypeNameHelper.GetFriendlyTypeName(elementType)})";
-                            var paramModel = new ApiParameterInfo
+                            // Collection of primitives or complex
+                            string collectionDescription = $"{paramDescription} (collection of {TypeNameHelper.GetFriendlyTypeName(elementType)})";
+
+                            ApiParameterInfo paramModel = new ApiParameterInfo
                             {
                                 Name = param.Name ?? "unnamed_parameter",
                                 Type = TypeNameHelper.GetFriendlyTypeName(param.ParameterType),
                                 IsFromBody = false,
                                 Source = "Query",
-                                IsRequired = param.GetCustomAttribute<RequiredAttribute>() != null || !param.IsOptional,
+                                IsRequired = !isOptional,
                                 Description = collectionDescription,
                                 IsCollection = true,
                                 CollectionElementType = TypeNameHelper.GetFriendlyTypeName(elementType),
@@ -91,38 +95,42 @@ internal class ParameterDescriptionBuilder
                         }
                         else
                         {
-                            // No es colección - procesar como objeto complejo
-                            foreach(var prop in param.ParameterType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                            // If it's a complex object, we must break down its properties
+                            foreach(PropertyInfo prop in param.ParameterType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
                             {
-                                var propDescription = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, prop) ?? paramDescription;
-                                propDescription = propDescription.Trim().TrimEnd('.');
-                                var propType = TypeNameHelper.GetFriendlyTypeName(prop.PropertyType);
-
-                                var paramModel = new ApiParameterInfo
+                                if(IsPrimitiveOrFrameworkType(prop.PropertyType))
                                 {
-                                    Name = prop.Name,
-                                    Type = propType,
-                                    IsFromBody = false,
-                                    Source = "Query",
-                                    IsRequired = prop.GetCustomAttribute<RequiredAttribute>() != null,
-                                    Description = propDescription,
-                                    Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(prop.PropertyType, new HashSet<Type>())
-                                };
-                                parameters.Add(paramModel);
-                                validParameterNames.Add(prop.Name);
+                                    // It's a primitive
+                                    string propDescription = XmlDocumentationHelper.GetXmlSummary(_xmlDocs, prop) ?? paramDescription;
+                                    propDescription = propDescription.Trim().TrimEnd('.');
+                                    string propType = TypeNameHelper.GetFriendlyTypeName(prop.PropertyType);
+
+                                    ApiParameterInfo propModel = new ApiParameterInfo
+                                    {
+                                        Name = prop.Name,
+                                        Type = propType,
+                                        IsFromBody = false,
+                                        Source = "Query",
+                                        IsRequired = !isOptional,
+                                        Description = propDescription,
+                                        Schema = new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(prop.PropertyType, new HashSet<Type>())
+                                    };
+                                    parameters.Add(propModel);
+                                    validParameterNames.Add(prop.Name);
+                                }
                             }
                         }
                     }
                     else
                     {
-                        var isFromBody = paramSource.Equals("Body", StringComparison.OrdinalIgnoreCase);
-                        var paramModel = new ApiParameterInfo
+                        bool isFromBody = paramSource.Equals("Body", StringComparison.OrdinalIgnoreCase);
+                        ApiParameterInfo paramModel = new ApiParameterInfo
                         {
                             Name = param.Name ?? "unnamed_parameter",
                             Type = paramType,
                             IsFromBody = isFromBody,
                             Source = paramSource,
-                            IsRequired = param.GetCustomAttribute<RequiredAttribute>() != null || !param.IsOptional,
+                            IsRequired = !isOptional,
                             Description = paramDescription,
                             Schema = isFromBody ? new JsonSchemaGenerator(_xmlDocs).GenerateJsonSchema(param.ParameterType, new HashSet<Type>()) : null
                         };
@@ -140,19 +148,21 @@ internal class ParameterDescriptionBuilder
             }
         }
 
-        var returns = XmlDocumentationHelper.GetXmlReturns(_xmlDocs, method);
+        string returns = XmlDocumentationHelper.GetXmlReturns(_xmlDocs, method);
         if(!string.IsNullOrWhiteSpace(returns))
         {
             descriptionBuilder.AppendLine($"Returns: {returns.Trim().TrimEnd('.')}");
+
         }
 
-        var remarks = XmlDocumentationHelper.GetXmlRemarks(_xmlDocs, method);
+        string remarks = XmlDocumentationHelper.GetXmlRemarks(_xmlDocs, method);
         if(!string.IsNullOrWhiteSpace(remarks))
         {
             descriptionBuilder.AppendLine($"Remarks: {remarks.Trim().TrimEnd('.')}");
+
         }
 
-        var description = descriptionBuilder.ToString().TrimEnd('\n', '\r');
+        string description = descriptionBuilder.ToString().TrimEnd('\n', '\r');
         if(string.IsNullOrWhiteSpace(description) && !IsInvalidParameterName(method.Name))
         {
             description = method.Name;
@@ -164,10 +174,41 @@ internal class ParameterDescriptionBuilder
         return (parameters, description);
     }
 
+    private bool IsPrimitiveOrFrameworkType(Type? type)
+    {
+        if(type == null)
+        {
+            return false;
+        }
+
+        Type underlying = Nullable.GetUnderlyingType(type) ?? type;
+
+        return underlying.IsPrimitive ||
+               underlying == typeof(string) ||
+               underlying == typeof(decimal) ||
+               underlying == typeof(DateTime) ||
+               underlying == typeof(TimeSpan) ||
+               underlying == typeof(Guid) ||
+               underlying.IsEnum;
+    }
+
     private bool IsInvalidParameterName(string? name)
     {
         if(string.IsNullOrWhiteSpace(name))
             return true;
-        return name.Contains("<") || name.Contains(">") || name.Contains("$") || name.StartsWith("b__");
+        return name.Contains("<") ||
+               name.Contains(">") ||
+               name.Contains("$") ||
+               name.StartsWith("b__");
+
     }
+
+    private bool IsOptionalParam(ParameterInfo param)
+    {
+        // If parameter is nullable or not marked with [Required] then it's optional
+        return param.IsOptional ||
+               Nullable.GetUnderlyingType(param.ParameterType) != null &&
+               param.GetCustomAttribute<RequiredAttribute>() == null;
+    }
+
 }

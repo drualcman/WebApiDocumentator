@@ -56,6 +56,7 @@ internal class RequestProcessor
         try
         {
             using var response = await httpClient.SendAsync(_builder.Request);
+            result.ResponseContent = response.ReasonPhrase;
             result.ResponseCodeDescription = $"[{(int)response.StatusCode}] {response.ReasonPhrase}".Trim();
 
             await _responseProcessor.FormatResponseContent(response, result);
