@@ -151,80 +151,149 @@
                             <input type="hidden" name="TestInput.Route" value="@route" />
                             @Html.AntiForgeryToken()
 
-                            <div class="form-group">
-                                <h3>Custom Headers</h3>
-                                <div id="headers-container">
+                            <section class="header-section">
+                                <div class="headers-container" id="headers-container">
+                                    <h3>Custom Headers</h3>
                                     @if(Model.TestInput.CustomHeaders is not null && Model.TestInput.CustomHeaders.Any())
                                     {
-                                        for (int i = 0; i < Model.TestInput.CustomHeaders.Count; i++)
+                                        for(int i = 0; i < Model.TestInput.CustomHeaders.Count; i++)
                                         {
                                             <div class="header-row">
-                                                <input type="text" name="TestInput.CustomHeaders[@i].Key" placeholder="Header Name"  value="@Model.TestInput.CustomHeaders[i].Key" />
-                                                <input type="text" name="TestInput.CustomHeaders[@i].Value" placeholder="Header Value"  value="@Model.TestInput.CustomHeaders[i].Value" />
-                                                <button type="button" class="btn btn-danger remove-header">Remove</button>
-                                            </div>                                                
+                                                <div class="header-name-container">
+                                                    <input type="text"
+                                                           name="TestInput.CustomHeaders[@i].Key"
+                                                           placeholder="Header Name"
+                                                           value="@Model.TestInput.CustomHeaders[i].Key"
+                                                           class="header-name)" />
+                                                    @if(ModelState.ContainsKey($"TestInput.CustomHeaders[{i}].Key"))
+                                                    {
+                                                        <div class="field-error">
+                                                            @ModelState[$"TestInput.CustomHeaders[{i}].Key"].Errors.FirstOrDefault()?.ErrorMessage
+                                                        </div>
+                                                    }
+                                                </div>
+
+                                                <div class="header-value-container">
+                                                    <input type="text"
+                                                           name="TestInput.CustomHeaders[@i].Value"
+                                                           placeholder="Header Value"
+                                                           value="@Model.TestInput.CustomHeaders[i].Value"
+                                                           class="header-value" />
+                                                    @if(ModelState.ContainsKey($"TestInput.CustomHeaders[{i}].Value"))
+                                                    {
+                                                        <div class="field-error">
+                                                            @ModelState[$"TestInput.CustomHeaders[{i}].Value"].Errors.FirstOrDefault()?.ErrorMessage
+                                                        </div>
+                                                    }
+                                                </div>
+
+                                                <button type="button" class="btn btn-icon remove-header" title="Remove header">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                    </svg>
+                                                </button>
+                                            </div>
                                         }
                                     }
+                                    <button type="button" id="add-header" class="btn btn-outline">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                                        </svg>
+                                        Add Header
+                                    </button>
                                 </div>
-                                <button type="button" id="add-header" class="btn btn-primary">Add Header</button>
-                            </div>
+                                <div class="auth-section card">
+                                    <h3>Authentication</h3>
 
-                            <div class="auth-section">
-                                <input type="hidden" id="authTypeValue" name="authTypeValue" value="@Model.TestInput.Authentication.Type" />
-                                <input type="hidden" id="apiKeyLocationValue" name="apiKeyLocationValue" value="@Model.TestInput.Authentication.ApiKeyLocation" />
-                                <label for="authType">Authentication Type</label>
-                                <select id="authType" name="TestInput.Authentication.Type"  onchange="toggleAuthFields()">
-                                    <option value="None">None</option>
-                                    <option value="Bearer">Bearer Token</option>
-                                    <option value="ApiKey">API Key</option>
-                                    <option value="Basic">Basic Auth</option>
-                                </select>
-
-                                <div id="bearerFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Bearer ? "active" : "")">
-                                    <label for="bearerToken">Bearer Token (Required)</label>
-                                    <input type="text" id="bearerToken" name="TestInput.Authentication.BearerToken" value="@Model.TestInput.Authentication.BearerToken" placeholder="Enter Bearer Token" />
-                                    @if(ModelState.ContainsKey("TestInput.Authentication.BearerToken"))
-                                    {
-                                        <div class="field-error">
-                                            @ModelState["TestInput.Authentication.BearerToken"].Errors.FirstOrDefault()?.ErrorMessage
+                                    <div class="form-group">
+                                        <label for="authType">Authentication Type</label>
+                                        <div class="select-wrapper">
+                                            <select id="authType" name="TestInput.Authentication.Type" onchange="toggleAuthFields()">
+                                                <option value="None">None</option>
+                                                <option value="Bearer">Bearer Token</option>
+                                                <option value="ApiKey">API Key</option>
+                                                <option value="Basic">Basic Auth</option>
+                                            </select>
+                                            <div class="select-arrow"></div>
                                         </div>
-                                    }
-                                </div>
+                                    </div>
 
-                                <div id="apiKeyFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.ApiKey ? "active" : "")">
-                                    <label for="apiKeyValue">API Key (Required)</label>
-                                    <input type="text" id="apiKeyValue" name="TestInput.Authentication.ApiKeyValue" value="@Model.TestInput.Authentication.ApiKeyValue" placeholder="Enter API Key" />
-                                    @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyValue"))
-                                    {
-                                        <div class="field-error">
-                                            @ModelState["TestInput.Authentication.ApiKeyValue"].Errors.FirstOrDefault()?.ErrorMessage
+                                    <div id="bearerFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Bearer ? "active" : "")">
+                                        <div class="form-group">
+                                            <label for="bearerToken">Bearer Token</label>
+                                            <input type="text" id="bearerToken" name="TestInput.Authentication.BearerToken"
+                                                   value="@Model.TestInput.Authentication.BearerToken"
+                                                   placeholder="Enter Bearer Token" />
+                                            @if(ModelState.ContainsKey("TestInput.Authentication.BearerToken"))
+                                            {
+                                                <div class="field-error">
+                                                    @ModelState["TestInput.Authentication.BearerToken"].Errors.FirstOrDefault()?.ErrorMessage
+                                                </div>
+                                            }
                                         </div>
-                                    }
+                                    </div>
 
-                                    <label for="apiKeyName">Header/Parameter Name (Optional, defaults to 'X-Api-Key')</label>
-                                    <input type="text" id="apiKeyName" name="TestInput.Authentication.ApiKeyName" value="@Model.TestInput.Authentication.ApiKeyName" placeholder="e.g., X-Api-Key" />
-                                    @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyName"))
-                                    {
-                                        <div class="field-error">
-                                            @ModelState["TestInput.Authentication.ApiKeyName"].Errors.FirstOrDefault()?.ErrorMessage
+                                    <div id="apiKeyFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.ApiKey ? "active" : "")">
+                                        <div class="form-group">
+                                            <label for="apiKeyValue">API Key</label>
+                                            <input type="text" id="apiKeyValue" name="TestInput.Authentication.ApiKeyValue"
+                                                   value="@Model.TestInput.Authentication.ApiKeyValue"
+                                                   placeholder="Enter API Key" />
+                                            @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyValue"))
+                                            {
+                                                <div class="field-error">
+                                                    @ModelState["TestInput.Authentication.ApiKeyValue"].Errors.FirstOrDefault()?.ErrorMessage
+                                                </div>
+                                            }
                                         </div>
-                                    }
 
-                                    <label for="apiKeyLocation">Location</label>
-                                    <select id="apiKeyLocation" name="TestInput.Authentication.ApiKeyLocation" >
-                                        <option value="Header">Header</option>
-                                        <option value="Query">Query</option>
-                                    </select>
-                                </div>
+                                        <div class="form-group">
+                                            <label for="apiKeyName">Header/Parameter Name</label>
+                                            <input type="text" id="apiKeyName" name="TestInput.Authentication.ApiKeyName"
+                                                   value="@Model.TestInput.Authentication.ApiKeyName"
+                                                   placeholder="e.g., X-Api-Key" />
+                                            @if(ModelState.ContainsKey("TestInput.Authentication.ApiKeyName"))
+                                            {
+                                                <div class="field-error">
+                                                    @ModelState["TestInput.Authentication.ApiKeyName"].Errors.FirstOrDefault()?.ErrorMessage
+                                                </div>
+                                            }
+                                        </div>
 
-                                <div id="basicFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Basic ? "active" : "")">
-                                    <label for="basicUsername">Username (Required)</label>
-                                    <input type="text" id="basicUsername" name="TestInput.Authentication.BasicUsername" value="@Model.TestInput.Authentication.BasicUsername" placeholder="Enter Username" />
-                                    <label for="basicPassword">Password (Required)</label>
-                                    <input type="password" id="basicPassword" name="TestInput.Authentication.BasicPassword" value="@Model.TestInput.Authentication.BasicPassword" placeholder="Enter Password" />
+                                        <div class="form-group">
+                                            <label for="apiKeyLocation">Location</label>
+                                            <div class="select-wrapper">
+                                                <select id="apiKeyLocation" name="TestInput.Authentication.ApiKeyLocation">
+                                                    <option value="Header">Header</option>
+                                                    <option value="Query">Query</option>
+                                                </select>
+                                                <div class="select-arrow"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="basicFields" class="auth-fields @(Model.TestInput.Authentication.Type == AuthenticationType.Basic ? "active" : "")">
+                                        <div class="form-group">
+                                            <label for="basicUsername">Username</label>
+                                            <input type="text" id="basicUsername" name="TestInput.Authentication.BasicUsername"
+                                                   value="@Model.TestInput.Authentication.BasicUsername"
+                                                   placeholder="Enter Username" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="basicPassword">Password</label>
+                                            <input type="password" id="basicPassword" name="TestInput.Authentication.BasicPassword"
+                                                   value="@Model.TestInput.Authentication.BasicPassword"
+                                                   placeholder="Enter Password" />
+                                        </div>
+                                    </div>
+
+                                    <button type="button" class="btn btn-outline" onclick="clearAuth()">
+                                        Clear Authentication
+                                    </button>
                                 </div>
-                                <button type="button" class="btn btn-secondary" onclick="clearAuth()">Clear Authentication</button>
-                            </div>
+                            </section>
 
                             @foreach(var param in selected.Parameters)
                             {
@@ -341,12 +410,12 @@
                             }
                             @if(!ModelState.IsValid &&
                                                     ModelState
-                                                    .Where(kvp => !kvp.Key.StartsWith("TestInput.Parameters["))
+                                                    .Where(kvp => !kvp.Key.StartsWith("TestInput.Parameters[") && !kvp.Key.StartsWith("TestInput.CustomHeaders["))
                                                     .Any(state => state.Value?.Errors?.Any(e => !string.IsNullOrWhiteSpace(e.ErrorMessage)) ?? false))
                             {
                                 <div class="error-message">
                                     <ul>
-                                        @foreach(var error in ModelState.Where(kvp => !kvp.Key.StartsWith("TestInput.Parameters[")))
+                                        @foreach(var error in ModelState.Where(kvp => !kvp.Key.StartsWith("TestInput.Parameters[") && !kvp.Key.StartsWith("TestInput.CustomHeaders[")))
                                         {
                                             foreach(var err in error.Value.Errors)
                                             {
@@ -907,21 +976,31 @@
                     newRow.innerHTML = `                                                                                                            
                         <input type="text" name="TestInput.CustomHeaders[${headerIndex}].Key" placeholder="Header Name"  />
                         <input type="text" name="TestInput.CustomHeaders[${headerIndex}].Value" placeholder="Header Value"  />
-                        <button type="button" class="btn btn-danger remove-header">Remove</button>
+                        <button type="button" class="btn btn-icon remove-header" title="Remove header">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
                     `;
                     container.appendChild(newRow);
                     headerIndex++;
                 });
+
+                document.addEventListener('click', function (e) {
+                    var button = e.target.closest('.remove-header'); 
+
+                    if (button) {
+                        var row = button.closest('.header-row'); 
+                        if (row) {
+                            row.remove();
+                            reindexHeaders();
+                            console.log('Row removed and headers reindexed');
+                        }
+                    }
+                });
             }
 
-            document.addEventListener('click', function (e) {     
-                if (e.target.classList.contains('remove-header')) {
-                    const row = e.target.parentElement;
-                    row.remove();
-                    reindexHeaders(); // Reindexar después de eliminar
-                    console.log('Row removed and headers reindexed');
-                }
-            });
         }
 
         function reindexHeaders() {

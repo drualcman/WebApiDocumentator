@@ -694,7 +694,128 @@ internal static class Style
         .btn-add-item:hover, .btn-remove-item:hover {
             opacity: 0.8;
         }
-    </style>
+
+/* Header and Auth Section Layout - Fixed */
+.header-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    align-items: start;
+}
+
+.headers-container {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    overflow: visible; /* Asegura que nada se corte */
+}
+
+/* Header Rows - Fixed */
+/* Header Rows with Validation */
+.header-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.5rem;
+    align-items: start; /* Cambiado a start para alinear arriba */
+}
+
+.header-input-group {
+    display: contents; /* Los hijos participan directamente en el grid */
+}
+
+.header-name-container,
+.header-value-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.header-name, 
+.header-value {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.field-error {
+    color: var(--danger-color);
+    font-size: 0.75rem;
+    line-height: 1.2;
+    margin-top: -0.25rem;
+    padding: 0 0.25rem;
+}
+
+/* Botón remove ajustado */
+.btn-icon.remove-header {
+    margin-top: 0.5rem; /* Alineado con los inputs */
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--danger-color);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.btn-icon.remove-header:hover {
+    background-color: rgba(247, 37, 133, 0.1);
+    border-radius: 4px;
+}
+
+/* Auth Section - Fixed */
+.auth-section {
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .header-section {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 576px) {
+    .header-row {
+        grid-template-columns: 1fr 1fr auto;
+    }
+    
+    .header-name,
+    .header-value {
+        padding: 0.5rem;
+    }
+}
+
+/* Add Header Button */
+#add-header {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+}
+
+#add-header svg {
+    width: 16px;
+    height: 16px;
+}
+   </style>
 ";
     }
 }

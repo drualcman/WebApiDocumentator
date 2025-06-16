@@ -94,15 +94,16 @@ internal class RequestValidator
     {
         if(testInput.CustomHeaders is not null && testInput.CustomHeaders.Any())
         {
-            foreach(var header in testInput.CustomHeaders)
+            for(int i = 0; i < testInput.CustomHeaders.Count; i++)
             {
+                var header = testInput.CustomHeaders[i];
                 if(string.IsNullOrWhiteSpace(header.Key))
                 {
-                    modelState.AddModelError("CustomHeaders", "Header name cannot be empty.");
+                    modelState.AddModelError($"TestInput.CustomHeaders[{i}].Key", "Header name cannot be empty.");
                 }
                 if(string.IsNullOrWhiteSpace(header.Value?.ToString()))
                 {
-                    modelState.AddModelError("CustomHeaders", $"Value for header '{header.Key}' cannot be empty.");
+                    modelState.AddModelError($"TestInput.CustomHeaders[{i}].Value", $"Value for header '{header.Key}' cannot be empty.");
                 }
             }
         }
