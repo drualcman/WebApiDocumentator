@@ -431,7 +431,6 @@
                                 </div>
                             }
 
-
                             <button type="submit" class="btn" id="submitBtn">Send Request</button>
                             <div class="loading" id="loadingIndicator">
                                 <div class="loading-spinner"></div>
@@ -470,7 +469,7 @@
                                         @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
                                         {
                     <text>     -H "Content-Type: application/json"
-                                     -d '@Html.Raw(Model.RequestBodyJson)'</text>
+     -d '@Html.Raw(Model.RequestBodyJson)'</text>
                                         }
                     </pre>
             </div>
@@ -480,18 +479,18 @@
                     <button class="copy-btn" data-target="csharp-example">Copy</button>
                 </div>
                 <pre id="csharp-example">using var client = new HttpClient();
-                client.BaseAddress = new Uri("@Model.BaseUrl");
+client.BaseAddress = new Uri("@Model.BaseUrl");
                                         @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
                                         {
                     <text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
-                                using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
+using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
                                         }
                                         else
                                         {
                     <text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
                                         }
-                response.EnsureSuccessStatusCode();
-                var content = await response.Content.ReadAsStringAsync();</pre>
+response.EnsureSuccessStatusCode();
+var content = await response.Content.ReadAsStringAsync();</pre>
             </div>
 
             <div class="example-tab-content" id="javascript-tab">
@@ -499,15 +498,15 @@
                     <button class="copy-btn" data-target="javascript-example">Copy</button>
                 </div>
                 <pre id="javascript-example">fetch("@($"{Model.BaseUrl}/{Model.ExampleRequestUrl.TrimStart('/')}")", {
-                     method: "@selected.HttpMethod",
+     method: "@selected.HttpMethod",
                                         @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
                                         {
                     <text>     headers: { "Content-Type": "application/json" },
-                                     body: @Html.Raw(Model.RequestBodyJson)</text>
+     body: @Html.Raw(Model.RequestBodyJson)</text>
                                         }
-                })
-                .then(res => res.json())
-                .then(data => console.log(data));</pre>
+})
+.then(res => res.json())
+.then(data => console.log(data));</pre>
             </div>
         </div>
     }
