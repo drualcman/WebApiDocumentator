@@ -40,6 +40,7 @@ internal class IndexModel : PageModel
     {
         Groups = _endpointService.GetGroupedEndpoints();
         TestInput.Authentication = _requestProcessor.LoadAuthenticationFromSession(HttpContext.Session);
+        TestInput.CustomHeaders = _requestProcessor.LoadHeadersFromSession(HttpContext.Session);
 
         if(!string.IsNullOrWhiteSpace(id))
         {
@@ -75,6 +76,7 @@ internal class IndexModel : PageModel
 
         await _requestProcessor.ValidateInput(SelectedEndpoint, TestInput, Request, ModelState);
         _requestProcessor.SaveAuthenticationToSession(HttpContext.Session, TestInput.Authentication);
+        _requestProcessor.SaveHeadersToSession(HttpContext.Session, TestInput.CustomHeaders);
 
         if(!ModelState.IsValid)
         {

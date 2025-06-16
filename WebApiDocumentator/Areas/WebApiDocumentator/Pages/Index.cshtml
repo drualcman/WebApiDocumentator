@@ -151,11 +151,29 @@
                             <input type="hidden" name="TestInput.Route" value="@route" />
                             @Html.AntiForgeryToken()
 
+                            <div class="form-group">
+                                <h3>Custom Headers</h3>
+                                <div id="headers-container">
+                                    @if(Model.TestInput.CustomHeaders is not null && Model.TestInput.CustomHeaders.Any())
+                                    {
+                                        for (int i = 0; i < Model.TestInput.CustomHeaders.Count; i++)
+                                        {
+                                            <div class="header-row">
+                                                <input type="text" name="TestInput.CustomHeaders[@i].Key" placeholder="Header Name"  value="@Model.TestInput.CustomHeaders[i].Key" />
+                                                <input type="text" name="TestInput.CustomHeaders[@i].Value" placeholder="Header Value"  value="@Model.TestInput.CustomHeaders[i].Value" />
+                                                <button type="button" class="btn btn-danger remove-header">Remove</button>
+                                            </div>                                                
+                                        }
+                                    }
+                                </div>
+                                <button type="button" id="add-header" class="btn btn-primary">Add Header</button>
+                            </div>
+
                             <div class="auth-section">
                                 <input type="hidden" id="authTypeValue" name="authTypeValue" value="@Model.TestInput.Authentication.Type" />
                                 <input type="hidden" id="apiKeyLocationValue" name="apiKeyLocationValue" value="@Model.TestInput.Authentication.ApiKeyLocation" />
                                 <label for="authType">Authentication Type</label>
-                                <select id="authType" name="TestInput.Authentication.Type" class="form-control" onchange="toggleAuthFields()">
+                                <select id="authType" name="TestInput.Authentication.Type"  onchange="toggleAuthFields()">
                                     <option value="None">None</option>
                                     <option value="Bearer">Bearer Token</option>
                                     <option value="ApiKey">API Key</option>
@@ -193,7 +211,7 @@
                                     }
 
                                     <label for="apiKeyLocation">Location</label>
-                                    <select id="apiKeyLocation" name="TestInput.Authentication.ApiKeyLocation" class="form-control">
+                                    <select id="apiKeyLocation" name="TestInput.Authentication.ApiKeyLocation" >
                                         <option value="Header">Header</option>
                                         <option value="Query">Query</option>
                                     </select>
@@ -219,8 +237,8 @@
                                         <div class="form-group">
                                             <label>@param.Name (@param.Type): @(param.IsRequired ? "Required" : "Optional")</label>
                                             <textarea name="TestInput.Parameters[@param.Name]"
-                                                                  rows="@rows"
-                                                                  placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value
+                                      rows="@rows"
+                                      placeholder="@(Model.GenerateFlatSchema(param.Schema) ?? "Enter JSON here")">@value
                                             </textarea>
                                         </div>
                                     }
@@ -251,9 +269,9 @@
                                                            value="@currentValue"
                                                            placeholder="yyyy-MM-ddTHH:mm" />
                                                 }
-                                                else if(prop.PropertyType == typeof(byte[]) || 
-                                                        prop.PropertyType.Name == "IFormFile" || 
-                                                        prop.PropertyType.Name == "IFormFileCollection")
+                                                else if(prop.PropertyType == typeof(byte[]) ||
+                                                prop.PropertyType.Name == "IFormFile" ||
+                                                prop.PropertyType.Name == "IFormFileCollection")
                                                 {
                                                     fullKey = $"TestInput.Files[{param.Name}]";
                                                     <input type="file" name="@fullKey" />
@@ -380,12 +398,12 @@
                     <button class="copy-btn" data-target="curl-example">Copy</button>
                 </div>
                 <pre id="curl-example">curl -X @selected.HttpMethod @($"{Model.BaseUrl}/{Model.ExampleRequestUrl.TrimStart('/')}")
-                            @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                            {
+                                        @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                                        {
                     <text>     -H "Content-Type: application/json"
-             -d '@Html.Raw(Model.RequestBodyJson)'</text>
-                            }
-        </pre>
+                                     -d '@Html.Raw(Model.RequestBodyJson)'</text>
+                                        }
+                    </pre>
             </div>
 
             <div class="example-tab-content" id="csharp-tab">
@@ -393,18 +411,18 @@
                     <button class="copy-btn" data-target="csharp-example">Copy</button>
                 </div>
                 <pre id="csharp-example">using var client = new HttpClient();
-    client.BaseAddress = new Uri("@Model.BaseUrl");
-                            @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                            {
+                client.BaseAddress = new Uri("@Model.BaseUrl");
+                                        @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                                        {
                     <text>using var content = new StringContent(@Html.Raw(Model.RequestBodyJson), System.Text.Encoding.UTF8, "application/json");
-        using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
-                            }
-                            else
-                            {
+                                using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl", content);</text>
+                                        }
+                                        else
+                                        {
                     <text>using var response = await client.@(Model.HttpMethodFormatted)Async("@Model.ExampleRequestUrl");</text>
-                            }
-    response.EnsureSuccessStatusCode();
-    var content = await response.Content.ReadAsStringAsync();</pre>
+                                        }
+                response.EnsureSuccessStatusCode();
+                var content = await response.Content.ReadAsStringAsync();</pre>
             </div>
 
             <div class="example-tab-content" id="javascript-tab">
@@ -412,15 +430,15 @@
                     <button class="copy-btn" data-target="javascript-example">Copy</button>
                 </div>
                 <pre id="javascript-example">fetch("@($"{Model.BaseUrl}/{Model.ExampleRequestUrl.TrimStart('/')}")", {
-         method: "@selected.HttpMethod",
-                            @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
-                            {
+                     method: "@selected.HttpMethod",
+                                        @if(!string.IsNullOrWhiteSpace(Model.RequestBodyJson))
+                                        {
                     <text>     headers: { "Content-Type": "application/json" },
-             body: @Html.Raw(Model.RequestBodyJson)</text>
-                            }
-    })
-    .then(res => res.json())
-    .then(data => console.log(data));</pre>
+                                     body: @Html.Raw(Model.RequestBodyJson)</text>
+                                        }
+                })
+                .then(res => res.json())
+                .then(data => console.log(data));</pre>
             </div>
         </div>
     }
@@ -842,8 +860,8 @@
                     newItem.className = 'collection-item';
                     newItem.innerHTML = `
                         <input type="text"
-                               name="TestInput.Collections[${paramName}][${itemCount}]"
-                               placeholder="${paramType}" />
+                                name="TestInput.Collections[${paramName}][${itemCount}]"
+                                placeholder="${paramType}" />
                         <button type="button" class="btn-remove-item">×</button>
                     `;
 
@@ -878,6 +896,55 @@
             });
         }
 
+        let headerIndex = @(Model.TestInput?.CustomHeaders?.Count ?? 0);
+        function setupCustomHeaders() {
+            const headerContainer = document.getElementById('add-header');
+            if(headerContainer){
+                    headerContainer.addEventListener('click', function () {
+                    const container = document.getElementById('headers-container');
+                    const newRow = document.createElement('div');
+                    newRow.className = 'header-row';
+                    newRow.innerHTML = `                                                                                                            
+                        <input type="text" name="TestInput.CustomHeaders[${headerIndex}].Key" placeholder="Header Name"  />
+                        <input type="text" name="TestInput.CustomHeaders[${headerIndex}].Value" placeholder="Header Value"  />
+                        <button type="button" class="btn btn-danger remove-header">Remove</button>
+                    `;
+                    container.appendChild(newRow);
+                    headerIndex++;
+                });
+            }
+
+            document.addEventListener('click', function (e) {     
+                if (e.target.classList.contains('remove-header')) {
+                    const row = e.target.parentElement;
+                    row.remove();
+                    reindexHeaders(); // Reindexar después de eliminar
+                    console.log('Row removed and headers reindexed');
+                }
+            });
+        }
+
+        function reindexHeaders() {
+            const rows = document.querySelectorAll('#headers-container .header-row');
+            rows.forEach((row, index) => {
+                const keyInput = row.querySelector('input[name*="Key"]');
+                const valueInput = row.querySelector('input[name*="Value"]');
+                // Preservar los valores actuales
+                const keyValue = keyInput.value;
+                const valueValue = valueInput.value;
+                // Asignar nuevos nombres con índices consecutivos
+                keyInput.name = `TestInput.CustomHeaders[${index}].Key`;
+                valueInput.name = `TestInput.CustomHeaders[${index}].Value`;
+                // Restaurar los valores
+                keyInput.value = keyValue;
+                valueInput.value = valueValue;
+                console.log(`Reindexed: ${keyInput.name} = ${keyValue}, ${valueInput.name} = ${valueValue}`);
+            });
+            // Actualizar headerIndex al número de filas
+            headerIndex = rows.length;
+        }
+
+
         document.addEventListener("DOMContentLoaded", function () {
             initAuthFields();
             setupModelsTabs();
@@ -892,6 +959,7 @@
             setupDocumentationTabs();
             scrollToSelectedEndpoint();
             setupCollectionParameters();
+            setupCustomHeaders();
         });
     </script>
 </body>

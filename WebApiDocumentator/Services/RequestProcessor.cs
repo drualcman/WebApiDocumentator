@@ -22,10 +22,16 @@ internal class RequestProcessor
     }
 
     public AuthenticationInput LoadAuthenticationFromSession(ISession session)
-        => _authHandler.LoadFromSession(session);
+        => _authHandler.LoadAuthenticationFromSession(session);
+
+    public List<Header> LoadHeadersFromSession(ISession session)
+        => _authHandler.LoadHeadersFromSession(session);
 
     public void SaveAuthenticationToSession(ISession session, AuthenticationInput authentication)
         => _authHandler.SaveToSession(session, authentication);
+
+    public void SaveHeadersToSession(ISession session, List<Header> customHeaders)
+        => _authHandler.SaveToSession(session, customHeaders);
 
     public async Task ValidateInput(
         ApiEndpointInfo endpoint,
@@ -53,6 +59,14 @@ internal class RequestProcessor
 
         _authHandler.PrepareAuthentication(httpClient, testInput.Authentication);
 
+        // Agregar headers personalizados
+        if(testInput.CustomHeaders is not null && testInput.CustomHeaders.Any())
+        {
+            foreach(var header in testInput.CustomHeaders)
+            {
+                _builder.Request.Headers.Add(header.Key, header.Value?.ToString());
+            }
+        }
         try
         {
             using var response = await httpClient.SendAsync(_builder.Request);

@@ -5,6 +5,7 @@ internal class RequestValidator
     {
         ValidateRequiredParameters(endpoint, testInput, modelState);
         ValidateAuthentication(testInput, modelState);
+        ValidateCustomHeaders(testInput, modelState);
     }
 
     private void ValidateRequiredParameters(ApiEndpointInfo endpoint, EndpointTestInput testInput, ModelStateDictionary modelState)
@@ -86,6 +87,24 @@ internal class RequestValidator
         else if(testInput.Authentication.Type == AuthenticationType.ApiKey && string.IsNullOrWhiteSpace(testInput.Authentication.ApiKeyValue))
         {
             modelState.AddModelError("TestInput.Authentication.ApiKeyValue", "API Key is required when API Key authentication is selected.");
+        }
+    }
+
+    private void ValidateCustomHeaders(EndpointTestInput testInput, ModelStateDictionary modelState)
+    {
+        if(testInput.CustomHeaders is not null && testInput.CustomHeaders.Any())
+        {
+            foreach(var header in testInput.CustomHeaders)
+            {
+                if(string.IsNullOrWhiteSpace(header.Key))
+                {
+                    modelState.AddModelError("CustomHeaders", "Header name cannot be empty.");
+                }
+                if(string.IsNullOrWhiteSpace(header.Value?.ToString()))
+                {
+                    modelState.AddModelError("CustomHeaders", $"Value for header '{header.Key}' cannot be empty.");
+                }
+            }
         }
     }
 }

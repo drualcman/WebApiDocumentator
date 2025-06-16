@@ -8,7 +8,7 @@ internal class AuthenticationHandler
         _logger = logger;
     }
 
-    public AuthenticationInput LoadFromSession(ISession session)
+    public AuthenticationInput LoadAuthenticationFromSession(ISession session)
     {
         try
         {
@@ -32,10 +32,40 @@ internal class AuthenticationHandler
         return new AuthenticationInput();
     }
 
+    public List<Header> LoadHeadersFromSession(ISession session)
+    {
+        try
+        {
+            var headers = session.GetString("CustomHeaders");
+            if(!string.IsNullOrEmpty(headers))
+            {
+                try
+                {
+                    return JsonSerializer.Deserialize<List<Header>>(headers) ?? new List<Header>();
+                }
+                catch(JsonException ex)
+                {
+                    _logger.LogWarning("Failed to deserialize Authentication from session: {Error}", ex.Message);
+                }
+            }
+        }
+        catch(Exception ex)
+        {
+            _logger.LogWarning("Failed use session: {Error}", ex.Message);
+        }
+        return new List<Header>();
+    }
+
     public void SaveToSession(ISession session, AuthenticationInput authentication)
     {
         var authJson = JsonSerializer.Serialize(authentication);
         session.SetString("AuthenticationInput", authJson);
+    }
+
+    public void SaveToSession(ISession session, List<Header> customHeaders)
+    {
+        var headers = JsonSerializer.Serialize(customHeaders);
+        session.SetString("CustomHeaders", headers);
     }
 
     public void PrepareAuthentication(HttpClient httpClient, AuthenticationInput authentication)
