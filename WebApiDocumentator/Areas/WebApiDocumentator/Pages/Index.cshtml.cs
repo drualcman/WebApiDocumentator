@@ -10,6 +10,8 @@ internal class IndexModel : PageModel
     public List<EndpointGroupNode> Groups { get; private set; } = new();
     public ApiEndpointInfo? SelectedEndpoint { get; private set; }
 
+    public bool ShowOpenApi => _options.ShopOpenApiLink;
+    public bool EnableTesting => _options.EnableTesting;
     public string Name => _options.ApiName;
     public string Version => _options.Version;
     public string Description => _options.Description;
@@ -60,6 +62,13 @@ internal class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
+        if(!EnableTesting)
+        {
+            ModelState.AddModelError("", "Testing is not enabled.");
+            TestResponse = "Testing is not enabled.";
+            return Page();
+        }
+
         Groups = _endpointService.GetGroupedEndpoints();
         SelectedEndpoint = _endpointService.FindEndpointById(Groups, TestInput.Id);
 

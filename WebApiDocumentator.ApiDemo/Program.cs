@@ -13,6 +13,8 @@ builder.Services.AddWebApiDocumentator(options =>
     options.ApiName = "Test Api";
     options.Version = "v1";
     options.Description = "The best API in the world!";
+    options.EnableTesting = true;
+    options.ShopOpenApiLink = true;
 });
 builder.Services.AddScoped<SomeServicio>();
 

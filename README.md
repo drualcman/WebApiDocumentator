@@ -42,10 +42,17 @@ In appsettings json using `IOptions<DocumentatorOptions>` file like:
     "ApiName": "Your api name",
     "Version": "Your version, it's a string",
     "Description": "Full descripcion about your API",
-    "DocsBaseUrl": "documentation path, defatul it's [api root]/WebApiDocumentator"
+    "DocsBaseUrl": "documentation path, defatul it's [api root]/WebApiDocumentator",
+    "EnableTesting": true,
+    "ShopOpenApiLink": false
   }
 ```
-
+Then in the definition of the API:
+```csharp
+builder.Services.AddWebApiDocumentator(
+    options => builder.Configuration.GetSection(SmartCacheOptions.SectionKey).Bind(options)
+    );
+```
 Or directly like:
 ```csharp
 public void ConfigureServices(IServiceCollection services)
@@ -55,19 +62,14 @@ public void ConfigureServices(IServiceCollection services)
         options.ApiName = "Test Api";
         options.Version = "v1";
         options.Description = "The best API in the world!";
-        options.DocsBaseUrl = "docs/api"
+        options.DocsBaseUrl = "docs/api";
+        options.EnableTesting = true;
+        options.ShopOpenApiLink = false;
     });
 }
 
-//minimal api
+//minimal api with default options
 builder.Services.AddWebApiDocumentator();
-
-//Or also can do to read the appsettings.json
-/*
-builder.Services.AddWebApiDocumentator(
-    options => builder.Configuration.GetSection(SmartCacheOptions.SectionKey).Bind(options)
-    );
-*/
 ```
 #### 1.2 Add the user interface
 
@@ -93,7 +95,7 @@ To access to the interface you can use the default url
 
 Or if you personalize the url then use your own url
 
-```[your api url]/docs/api```
+```[your api url]/api/docs```
 
 *Remind:* Always you can use a defatult WebApiDocumentator page.
 
@@ -108,3 +110,18 @@ Or if you personalize the url then use your own url
 - Show documentation information
 - Show params type and from where
 - Show testing tab
+
+## Models
+If you use Options Pathern then this is the class should me match in the json configuration file. And this is the default values.
+```csharp
+public class DocumentatorOptions
+{
+    public static string SectionKey = nameof(DocumentatorOptions);
+    public string ApiName { get; set; }
+    public string Version { get; set; }
+    public string Description { get; set; }
+    public string DocsBaseUrl { get; set; } = "/api/docs";
+    public bool EnableTesting { get; set; } = true;
+    public bool ShopOpenApiLink { get; set; }
+}
+```
