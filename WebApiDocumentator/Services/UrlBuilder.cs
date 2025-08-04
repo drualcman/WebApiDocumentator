@@ -25,7 +25,16 @@ internal class UrlBuilder
         foreach(var param in endpoint.Parameters.Where(p => p.Source == "Path" && testInput.Parameters.ContainsKey(p.Name)))
         {
             var paramValue = HttpUtility.UrlEncode(testInput.Parameters[param.Name] ?? "");
-            requestUrl = requestUrl.Replace($"{{{param.Name}}}", paramValue, StringComparison.OrdinalIgnoreCase);
+
+            // Patrón para encontrar {param.Name}, {param.Name:long}, {param.Name:...}
+            var pattern = $"{{{param.Name}(:[^}}]*)?}}";
+
+            // Reemplazar todas las ocurrencias que coincidan con el patrón
+            requestUrl = Regex.Replace(
+                requestUrl,
+                pattern,
+                paramValue,
+                RegexOptions.IgnoreCase);
             _logger.LogInformation("Replaced route parameter: {{{ParamName}}} -> {ParamValue}", param.Name, paramValue);
         }
         return requestUrl;
