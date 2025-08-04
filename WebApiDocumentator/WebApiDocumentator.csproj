@@ -4,7 +4,7 @@
 		<TargetFrameworks>net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<AddRazorSupportForMvc>true</AddRazorSupportForMvc>
-		<Version>1.0.7</Version>
+		<Version>1.0.8</Version>
 		<Authors>Sergi Ortiz Gomez</Authors>
 		<Company>DrUalcman</Company>
 		<Description>A quick and easy way to create an interface to document a WebAPI built in .NET Core. It creates a user-friendly interface and has options for endpoint testing.</Description>
@@ -12,7 +12,7 @@
 		<PackageTags>webapi;netcore webapi documentation;documentation;</PackageTags>
 		<PackageId>WebApiDocumentator</PackageId>
 		<Product>WebApiDocumentator</Product>
-		<PackageReleaseNotes>Add options EnableTesting and ShopOpenApiLink. Add custom headers, to personalize if your api need more headers, not just the Authentication headers. Update dependencies.</PackageReleaseNotes>
+		<PackageReleaseNotes>Fixed: Path Parameter Replacement: Improved support for typed route parameters (e.g., {id:long}, {name:string}) in dynamically generated API URLs. Now correctly processes both simple ({param}) and typed ({param:type}) formats. Ensures backward compatibility with existing endpoints. Update dependencies.</PackageReleaseNotes>
 		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
 		<PackageReadmeFile>README.md</PackageReadmeFile>		
 		<RepositoryUrl>https://github.com/drualcman/SmartApiResponseCache</RepositoryUrl>
@@ -36,15 +36,15 @@
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
 		
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" Condition="'$(TargetFramework)' == 'net6.0'" />
-		<PackageReference Include="Microsoft.Extensions.Options" Version="6.0.1" Condition="'$(TargetFramework)' == 'net6.0'" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="6.0.1" Condition="'$(TargetFramework)' == 'net6.0'" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.7" Condition="'$(TargetFramework)' == 'net6.0'" />
+		<PackageReference Include="Microsoft.Extensions.Options" Version="9.0.7" Condition="'$(TargetFramework)' == 'net6.0'" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="9.0.7" Condition="'$(TargetFramework)' == 'net6.0'" />
 		
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" Condition="'$(TargetFramework)' == 'net7.0'" />
 		<PackageReference Include="Microsoft.Extensions.Options" Version="7.0.1" Condition="'$(TargetFramework)' == 'net7.0'" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="7.0.0" Condition="'$(TargetFramework)' == 'net7.0'" />
-		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="7.0.3" Condition="'$(TargetFramework)' == 'net7.0'" />
-		<PackageReference Include="System.Formats.Asn1" Version="8.0.2" Condition="'$(TargetFramework)' == 'net7.0'" />
+		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.7" Condition="'$(TargetFramework)' == 'net7.0'" />
+		<PackageReference Include="System.Formats.Asn1" Version="9.0.7" Condition="'$(TargetFramework)' == 'net7.0'" />
 		
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" Condition="'$(TargetFramework)' == 'net8.0'" />
 		<PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" Condition="'$(TargetFramework)' == 'net8.0'" />
