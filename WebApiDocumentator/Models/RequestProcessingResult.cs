@@ -2,6 +2,6 @@
 
 internal class RequestProcessingResult
 {
-    public string? ResponseContent { get; set; }
-    public string? ResponseCodeDescription { get; set; }
+    public string ResponseContent { get; set; }
+    public string ResponseCodeDescription { get; set; }
 }

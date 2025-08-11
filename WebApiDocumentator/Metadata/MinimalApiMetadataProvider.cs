@@ -119,7 +119,7 @@ internal class MinimalApiMetadataProvider : IMetadataProvider
                typeof(IHttpContextAccessor).IsAssignableFrom(type);
     }
 
-    private Type? InferResultType(MethodInfo methodInfo, EndpointMetadataCollection metadata)
+    private Type InferResultType(MethodInfo methodInfo, EndpointMetadataCollection metadata)
     {
         var producesMetadata = metadata
             .OfType<IProducesResponseTypeMetadata>()

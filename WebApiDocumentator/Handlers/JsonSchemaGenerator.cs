@@ -11,7 +11,7 @@ internal class JsonSchemaGenerator
         _xmlDocs = xmlDocs;
     }
 
-    public string GetExampleAsJsonString(Dictionary<string, object>? schema)
+    public string GetExampleAsJsonString(Dictionary<string, object> schema)
     {
         string result = "";
         if(schema != null && schema.ContainsKey("example"))
@@ -22,7 +22,7 @@ internal class JsonSchemaGenerator
         return result;
     }
 
-    public Dictionary<string, object>? GenerateJsonSchema(Type? type, HashSet<Type>? processedTypes = null, bool includeExample = true)
+    public Dictionary<string, object> GenerateJsonSchema(Type type, HashSet<Type> processedTypes = null, bool includeExample = true)
     {
         if(type != null)
         {
@@ -75,7 +75,7 @@ internal class JsonSchemaGenerator
                     schema["required"] = requiredProperties;
                 if(includeExample)
                 {
-                    object? exampleInstance = GenerateExampleForType(type, 1);
+                    object exampleInstance = GenerateExampleForType(type, 1);
                     if(exampleInstance != null && exampleInstance is not JsonElement)
                     {
                         try

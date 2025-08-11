@@ -13,7 +13,7 @@ public class ParameterSourceResolver : IParameterSourceResolver
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public string GetParameterSource(ParameterInfo parameter, HashSet<string> routeParameters, EndpointMetadataCollection? metadata)
+    public string GetParameterSource(ParameterInfo parameter, HashSet<string> routeParameters, EndpointMetadataCollection metadata)
     {
         var paramType = parameter.ParameterType;
         var paramName = parameter.Name ?? "unnamed";
@@ -108,14 +108,14 @@ public class ParameterSourceResolver : IParameterSourceResolver
         }
     }
 
-    private bool IsBodyMethod(MethodInfo? method)
+    private bool IsBodyMethod(MethodInfo method)
     {
         return method?.GetCustomAttributes()
             .OfType<HttpMethodAttribute>()
             .Any(attr => new[] { "POST", "PUT", "PATCH" }.Contains(attr.HttpMethods.FirstOrDefault(), StringComparer.OrdinalIgnoreCase)) ?? false;
     }
 
-    private bool IsQueryMethod(MethodInfo? method)
+    private bool IsQueryMethod(MethodInfo method)
     {
         return method?.GetCustomAttributes()
             .OfType<HttpMethodAttribute>()

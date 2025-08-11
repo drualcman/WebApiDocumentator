@@ -8,7 +8,7 @@ internal class IndexModel : PageModel
     private readonly DocumentatorOptions _options;
 
     public List<EndpointGroupNode> Groups { get; private set; } = new();
-    public ApiEndpointInfo? SelectedEndpoint { get; private set; }
+    public ApiEndpointInfo SelectedEndpoint { get; private set; }
 
     public bool ShowOpenApi => _options.ShopOpenApiLink;
     public bool EnableTesting => _options.EnableTesting;
@@ -17,13 +17,13 @@ internal class IndexModel : PageModel
     public string Description => _options.Description;
     public string BaseUrl => $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
     public string DocsBaseUrl => string.IsNullOrWhiteSpace(_options.DocsBaseUrl) ? "WebApiDocumentator" : _options.DocsBaseUrl.TrimStart('/');
-    public string? TestResponse { get; private set; }
+    public string TestResponse { get; private set; }
     [BindProperty]
     public EndpointTestInput TestInput { get; set; } = new();
-    public string? ExampleRequestUrl { get; private set; }
-    public string? RequestBodyJson { get; private set; }
-    public string? ExampleBodyJson { get; private set; }
-    public string? ResponseCodeDescription { get; private set; }
+    public string ExampleRequestUrl { get; private set; }
+    public string RequestBodyJson { get; private set; }
+    public string ExampleBodyJson { get; private set; }
+    public string ResponseCodeDescription { get; private set; }
     public string FormEnctype => _endpointService.GetFormEnctype(SelectedEndpoint);
 
     public IndexModel(
@@ -38,7 +38,7 @@ internal class IndexModel : PageModel
         _logger = logger;
     }
 
-    public void OnGet([FromQuery] string? id)
+    public void OnGet([FromQuery] string id = null)
     {
         Groups = _endpointService.GetGroupedEndpoints();
         TestInput.Authentication = _requestProcessor.LoadAuthenticationFromSession(HttpContext.Session);
@@ -109,15 +109,15 @@ internal class IndexModel : PageModel
 
     public string GetApiVersion() => _endpointService.GetApiVersion();
 
-    public string? GenerateFlatSchema(Dictionary<string, object>? schema) => _endpointService.GenerateFlatSchema(schema);
+    public string GenerateFlatSchema(Dictionary<string, object> schema) => _endpointService.GenerateFlatSchema(schema);
 
     public IEnumerable<PropertyInfo> GetFormProperties(string typeName) => _endpointService.GetFormProperties(typeName);
 
-    public Type? GetTypeFromName(string typeName) => _endpointService.GetTypeFromName(typeName);
+    public Type GetTypeFromName(string typeName) => _endpointService.GetTypeFromName(typeName);
 
-    public string? HttpMethodFormatted => SelectedEndpoint != null
+    public string HttpMethodFormatted => SelectedEndpoint != null
         ? char.ToUpper(SelectedEndpoint.HttpMethod[0]) + SelectedEndpoint.HttpMethod.Substring(1).ToLower()
         : "";
 
-    public int CountLinesInSchema(Dictionary<string, object>? schema) => _endpointService.CountLinesInSchema(schema);
+    public int CountLinesInSchema(Dictionary<string, object> schema) => _endpointService.CountLinesInSchema(schema);
 }

@@ -19,8 +19,8 @@ internal class ParameterDescriptionBuilder
     public (List<ApiParameterInfo> Parameters, string Description) BuildParameters(
         MethodInfo method,
         HashSet<string> routeParameters,
-        Func<ParameterInfo, bool>? parameterFilter = null,
-        EndpointMetadataCollection? metadata = null)
+        Func<ParameterInfo, bool> parameterFilter = null,
+        EndpointMetadataCollection metadata = null)
     {
         List<ApiParameterInfo> parameters = new List<ApiParameterInfo>();
 
@@ -174,7 +174,7 @@ internal class ParameterDescriptionBuilder
         return (parameters, description);
     }
 
-    private bool IsPrimitiveOrFrameworkType(Type? type)
+    private bool IsPrimitiveOrFrameworkType(Type type)
     {
         if(type == null)
         {
@@ -192,7 +192,7 @@ internal class ParameterDescriptionBuilder
                underlying.IsEnum;
     }
 
-    private bool IsInvalidParameterName(string? name)
+    private bool IsInvalidParameterName(string name)
     {
         if(string.IsNullOrWhiteSpace(name))
             return true;

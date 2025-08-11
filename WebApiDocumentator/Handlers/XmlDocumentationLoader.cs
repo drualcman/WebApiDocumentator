@@ -1,9 +1,9 @@
 ﻿namespace WebApiDocumentator.Handlers;
 internal class XmlDocumentationLoader
 {
-    private readonly ILogger? _logger;
+    private readonly ILogger _logger;
 
-    public XmlDocumentationLoader(ILogger? logger = null)
+    public XmlDocumentationLoader(ILogger logger = null)
     {
         _logger = logger;
     }

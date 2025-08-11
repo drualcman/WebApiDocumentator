@@ -16,7 +16,7 @@ internal class EndpointService
 
     public List<EndpointGroupNode> GetGroupedEndpoints() => MetadataProvider.GetGroupedEndpoints();
 
-    public ApiEndpointInfo? FindEndpointById(List<EndpointGroupNode> groups, string? id)
+    public ApiEndpointInfo FindEndpointById(List<EndpointGroupNode> groups, string id)
     {
         if(string.IsNullOrWhiteSpace(id))
             return null;
@@ -58,21 +58,21 @@ internal class EndpointService
         return url;
     }
 
-    public string? GenerateRequestBodyJson(ApiEndpointInfo endpoint)
+    public string GenerateRequestBodyJson(ApiEndpointInfo endpoint)
     {
         var bodyParam = endpoint.Parameters.FirstOrDefault(p => p.IsFromBody);
         return bodyParam?.Schema != null ? JsonSchemaGenerator.GetExampleAsJsonString(bodyParam.Schema) : null;
     }
 
-    public string GetFormEnctype(ApiEndpointInfo? endpoint)
+    public string GetFormEnctype(ApiEndpointInfo endpoint)
     {
         if(endpoint == null)
             return "application/x-www-form-urlencoded";
 
         foreach(var param in endpoint.Parameters.Where(p => p.Source == "Form"))
         {
-            Type? type = GetTypeFromName(param.Type);
-            if(type == typeof(byte[]) || type?.Name == "IFormFile")
+            Type type = GetTypeFromName(param.Type);
+            if(type is not null && type == typeof(byte[]) || type?.Name == "IFormFile")
             {
                 return "multipart/form-data";
             }
@@ -92,7 +92,7 @@ internal class EndpointService
         return "application/x-www-form-urlencoded";
     }
 
-    public int CountLinesInSchema(Dictionary<string, object>? schema)
+    public int CountLinesInSchema(Dictionary<string, object> schema)
     {
         int result = 5;
         if(schema != null)
@@ -118,9 +118,9 @@ internal class EndpointService
 
     public string GetApiVersion() => $"v{ApiDescriptionGroupCollectionProvider.ApiDescriptionGroups.Version + 1}";
 
-    public string? GenerateFlatSchema(Dictionary<string, object>? schema) => JsonSchemaGenerator.GetExampleAsJsonString(schema);
+    public string GenerateFlatSchema(Dictionary<string, object> schema) => JsonSchemaGenerator.GetExampleAsJsonString(schema);
 
-    public Type? GetTypeFromName(string typeName)
+    public Type GetTypeFromName(string typeName)
     {
         return AppDomain.CurrentDomain
             .GetAssemblies()
@@ -130,7 +130,7 @@ internal class EndpointService
 
     public IEnumerable<PropertyInfo> GetFormProperties(string typeName)
     {
-        Type? type = GetTypeFromName(typeName);
+        Type type = GetTypeFromName(typeName);
         return type?.GetProperties(BindingFlags.Public | BindingFlags.Instance) ?? Enumerable.Empty<PropertyInfo>();
     }
 
