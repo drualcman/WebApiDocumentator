@@ -1,24 +1,25 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 
 	<PropertyGroup>
-		<TargetFrameworks>net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
+		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<AddRazorSupportForMvc>true</AddRazorSupportForMvc>
-		<Version>1.0.8</Version>
+		<Version>1.1.9</Version>
 		<Authors>Sergi Ortiz Gomez</Authors>
 		<Company>DrUalcman</Company>
 		<Description>A quick and easy way to create an interface to document a WebAPI built in .NET Core. It creates a user-friendly interface and has options for endpoint testing.</Description>
 		<Copyright>Free</Copyright>
-		<PackageTags>webapi;netcore webapi documentation;documentation;</PackageTags>
+		<PackageTags>webapi;netcore;netcore webapi documentation;documentation;api documentation</PackageTags>
 		<PackageId>WebApiDocumentator</PackageId>
 		<Product>WebApiDocumentator</Product>
-		<PackageReleaseNotes>Fixed: Path Parameter Replacement: Improved support for typed route parameters (e.g., {id:long}, {name:string}) in dynamically generated API URLs. Now correctly processes both simple ({param}) and typed ({param:type}) formats. Ensures backward compatibility with existing endpoints. Update dependencies.</PackageReleaseNotes>
+		<PackageReleaseNotes>Separate UseWebApidocumentator() into UseWebApiDocumentatorSessions and MapWebApiDocumentator to follow more correct middleware steps and clarifly what we are doing. Fixed: services.AddEndpointsApiExplorer(); because have a dependency about AddEndpointsApiExplorerIApiDescriptionGroupCollectionProvider in the services. Removed suport NET6 and NET7 because end of support by Microsoft. Update dependencies.</PackageReleaseNotes>
 		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
-		<PackageReadmeFile>README.md</PackageReadmeFile>		
-		<RepositoryUrl>https://github.com/drualcman/SmartApiResponseCache</RepositoryUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<RepositoryUrl>https://github.com/drualcman/WebApiDocumentator</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<PackageProjectUrl>https://github.com/drualcman/SmartApiResponseCache</PackageProjectUrl>
+		<NoWarn>1591</NoWarn>
+		<PackageProjectUrl>https://github.com/drualcman/WebApiDocumentator</PackageProjectUrl>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -34,25 +35,18 @@
 
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
-		
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.7" Condition="'$(TargetFramework)' == 'net6.0'" />
-		<PackageReference Include="Microsoft.Extensions.Options" Version="9.0.7" Condition="'$(TargetFramework)' == 'net6.0'" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="9.0.7" Condition="'$(TargetFramework)' == 'net6.0'" />
-		
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" Condition="'$(TargetFramework)' == 'net7.0'" />
-		<PackageReference Include="Microsoft.Extensions.Options" Version="7.0.1" Condition="'$(TargetFramework)' == 'net7.0'" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="7.0.0" Condition="'$(TargetFramework)' == 'net7.0'" />
-		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.7" Condition="'$(TargetFramework)' == 'net7.0'" />
-		<PackageReference Include="System.Formats.Asn1" Version="9.0.7" Condition="'$(TargetFramework)' == 'net7.0'" />
-		
+
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" Condition="'$(TargetFramework)' == 'net8.0'" />
 		<PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" Condition="'$(TargetFramework)' == 'net8.0'" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="8.0.1" Condition="'$(TargetFramework)' == 'net8.0'" />
-		
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.6" Condition="'$(TargetFramework)' == 'net9.0'" />
-		<PackageReference Include="Microsoft.Extensions.Options" Version="9.0.6" Condition="'$(TargetFramework)' == 'net9.0'" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="9.0.6" Condition="'$(TargetFramework)' == 'net9.0'" />
+
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.8" Condition="'$(TargetFramework)' == 'net9.0'" />
+		<PackageReference Include="Microsoft.Extensions.Options" Version="9.0.8" Condition="'$(TargetFramework)' == 'net9.0'" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="9.0.8" Condition="'$(TargetFramework)' == 'net9.0'" />
 	</ItemGroup>
 
 </Project>
