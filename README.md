@@ -78,13 +78,23 @@ In your `Configure` method, add the middleware to the pipeline using `UseWebApiD
 ```csharp
 public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
 {
-    // Add other middlewares like routing, authentication, etc.
-    
-    app.UseWebApiDocumentator();
+    // Add other middlewares like authentication, etc.    
+    app.UseWebApiDocumentatorSessions();    // Optional if you already use app.UseSession()
+    app.UseRouting();
+    app.MapRazorPages();                    // If you are using razor pages should be before UseWebApiDocumentator()
+    app.MapWebApiDocumentator();            // Required for WebApiDocumentator routes
 }
 
-//minimal api
-app.UseWebApiDocumentator();
+//minimal apivar 
+app = builder.Build();
+...
+app.UseWebApiDocumentatorSessions();    // Optional if you already use app.UseSession()
+app.UseRouting();
+app.MapRazorPages();                    // If you are using razor pages should be before UseWebApiDocumentator()
+app.MapWebApiDocumentator();            // Required for WebApiDocumentator routes
+...
+
+app.Run();
 ```
 
 ### Step 2: Interface HTML
