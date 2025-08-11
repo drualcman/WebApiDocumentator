@@ -27,8 +27,10 @@ if(app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseWebApiDocumentatorSessions();
+app.UseRouting();
 app.MapControllers();
-app.UseWebApiDocumentator();
+app.MapWebApiDocumentator();
 
 
 var summaries = new[]
@@ -100,7 +102,7 @@ app.MapPost("/fechas", ([FromQuery] DateTime? fecha) =>
     });
 
 
-app.Run();
+await app.RunAsync();
 
 public record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
