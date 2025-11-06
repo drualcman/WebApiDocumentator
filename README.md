@@ -44,7 +44,7 @@ In appsettings json using `IOptions<DocumentatorOptions>` file like:
     "Description": "Full descripcion about your API",
     "DocsBaseUrl": "documentation path, defatul it's [api root]/WebApiDocumentator",
     "EnableTesting": true,
-    "ShopOpenApiLink": false
+    "ShowOpenApiLink": false
   }
 ```
 Then in the definition of the API:
@@ -64,7 +64,7 @@ public void ConfigureServices(IServiceCollection services)
         options.Description = "The best API in the world!";
         options.DocsBaseUrl = "docs/api";
         options.EnableTesting = true;
-        options.ShopOpenApiLink = false;
+        options.ShowOpenApiLink = false;
     });
 }
 
@@ -132,6 +132,6 @@ public class DocumentatorOptions
     public string Description { get; set; }
     public string DocsBaseUrl { get; set; } = "/api/docs";
     public bool EnableTesting { get; set; } = true;
-    public bool ShopOpenApiLink { get; set; }
+    public bool ShowOpenApiLink { get; set; }
 }
 ```

@@ -8,5 +8,5 @@ public class DocumentatorOptions
     public string Description { get; set; }
     public string DocsBaseUrl { get; set; } = "/api/docs";
     public bool EnableTesting { get; set; } = true;
-    public bool ShopOpenApiLink { get; set; }
+    public bool ShowOpenApiLink { get; set; }
 }

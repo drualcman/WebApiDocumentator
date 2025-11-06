@@ -14,14 +14,14 @@ builder.Services.AddWebApiDocumentator(options =>
     options.Version = "v1";
     options.Description = "The best API in the world!";
     options.EnableTesting = true;
-    options.ShopOpenApiLink = true;
+    options.ShowOpenApiLink = true;
 });
 builder.Services.AddScoped<SomeServicio>();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if(app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }

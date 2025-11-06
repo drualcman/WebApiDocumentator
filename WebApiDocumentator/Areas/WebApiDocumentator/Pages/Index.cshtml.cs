@@ -10,7 +10,7 @@ internal class IndexModel : PageModel
     public List<EndpointGroupNode> Groups { get; private set; } = new();
     public ApiEndpointInfo SelectedEndpoint { get; private set; }
 
-    public bool ShowOpenApi => _options.ShopOpenApiLink;
+    public bool ShowOpenApi => _options.ShowOpenApiLink;
     public bool EnableTesting => _options.EnableTesting;
     public string Name => _options.ApiName;
     public string Version => _options.Version;
@@ -44,10 +44,10 @@ internal class IndexModel : PageModel
         TestInput.Authentication = _requestProcessor.LoadAuthenticationFromSession(HttpContext.Session);
         TestInput.CustomHeaders = _requestProcessor.LoadHeadersFromSession(HttpContext.Session);
 
-        if(!string.IsNullOrWhiteSpace(id))
+        if (!string.IsNullOrWhiteSpace(id))
         {
             SelectedEndpoint = _endpointService.FindEndpointById(Groups, id);
-            if(SelectedEndpoint != null)
+            if (SelectedEndpoint is not null)
             {
                 ExampleBodyJson = SelectedEndpoint.ExampleJson;
                 ExampleRequestUrl = _endpointService.GenerateExampleRequestUrl(SelectedEndpoint);
@@ -62,7 +62,7 @@ internal class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if(!EnableTesting)
+        if (!EnableTesting)
         {
             ModelState.AddModelError("", "Testing is not enabled.");
             TestResponse = "Testing is not enabled.";
@@ -72,7 +72,7 @@ internal class IndexModel : PageModel
         Groups = _endpointService.GetGroupedEndpoints();
         SelectedEndpoint = _endpointService.FindEndpointById(Groups, TestInput.Id);
 
-        if(SelectedEndpoint == null)
+        if (SelectedEndpoint is null)
         {
             ModelState.AddModelError("", "Selected endpoint not found.");
             TestResponse = "Selected endpoint not found.";
@@ -87,7 +87,7 @@ internal class IndexModel : PageModel
         _requestProcessor.SaveAuthenticationToSession(HttpContext.Session, TestInput.Authentication);
         _requestProcessor.SaveHeadersToSession(HttpContext.Session, TestInput.CustomHeaders);
 
-        if(!ModelState.IsValid)
+        if (!ModelState.IsValid)
         {
             TestResponse = $"Invalid ModelState.";
             return Page();

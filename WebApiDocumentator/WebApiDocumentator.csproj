@@ -4,7 +4,7 @@
 		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<AddRazorSupportForMvc>true</AddRazorSupportForMvc>
-		<Version>1.1.9</Version>
+		<Version>1.1.10</Version>
 		<Authors>Sergi Ortiz Gomez</Authors>
 		<Company>DrUalcman</Company>
 		<Description>A quick and easy way to create an interface to document a WebAPI built in .NET Core. It creates a user-friendly interface and has options for endpoint testing.</Description>
@@ -12,7 +12,7 @@
 		<PackageTags>webapi;netcore;netcore webapi documentation;documentation;api documentation</PackageTags>
 		<PackageId>WebApiDocumentator</PackageId>
 		<Product>WebApiDocumentator</Product>
-		<PackageReleaseNotes>Separate UseWebApidocumentator() into UseWebApiDocumentatorSessions and MapWebApiDocumentator to follow more correct middleware steps and clarifly what we are doing. Fixed: services.AddEndpointsApiExplorer(); because have a dependency about AddEndpointsApiExplorerIApiDescriptionGroupCollectionProvider in the services. Removed suport NET6 and NET7 because end of support by Microsoft. Update dependencies.</PackageReleaseNotes>
+		<PackageReleaseNotes>Rename typo in DocumentatorOptions.ShowOpenApiLink from ShopOpenApiLink. Update dependencies.</PackageReleaseNotes>
 		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<RepositoryUrl>https://github.com/drualcman/WebApiDocumentator</RepositoryUrl>
@@ -39,14 +39,18 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
+	</ItemGroup>
 
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.10" Condition="'$(TargetFramework)' == 'net8.0'" />
-		<PackageReference Include="Microsoft.Extensions.Options" Version="9.0.10" Condition="'$(TargetFramework)' == 'net8.0'" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="9.0.10" Condition="'$(TargetFramework)' == 'net8.0'" />
+	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2"  />
+		<PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2"  />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="8.0.1"  />
+	</ItemGroup>
 
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.10" Condition="'$(TargetFramework)' == 'net9.0'" />
-		<PackageReference Include="Microsoft.Extensions.Options" Version="9.0.10" Condition="'$(TargetFramework)' == 'net9.0'" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="9.0.10" Condition="'$(TargetFramework)' == 'net9.0'" />
+	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.10"  />
+		<PackageReference Include="Microsoft.Extensions.Options" Version="9.0.10" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="9.0.10"  />
 	</ItemGroup>
 
 </Project>

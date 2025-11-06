@@ -18,25 +18,25 @@ internal class EndpointService
 
     public ApiEndpointInfo FindEndpointById(List<EndpointGroupNode> groups, string id)
     {
-        if(string.IsNullOrWhiteSpace(id))
+        if (string.IsNullOrWhiteSpace(id))
             return null;
-        return groups.SelectMany(g => GetAllEndpoints(g)).FirstOrDefault(e => e.Id == id);
+        return groups.SelectMany(GetAllEndpoints).FirstOrDefault(e => e.Id == id);
     }
 
     public string GenerateExampleRequestUrl(ApiEndpointInfo endpoint)
     {
         var url = endpoint.Route;
 
-        foreach(var param in endpoint.Parameters.Where(p => p.Source == "Path"))
+        foreach (var param in endpoint.Parameters.Where(p => p.Source == "Path"))
         {
             var exampleValue = GenerateParameterExample(param);
             url = url.Replace($"{{{param.Name}}}", HttpUtility.UrlEncode(exampleValue), StringComparison.OrdinalIgnoreCase);
         }
 
         var queryParams = new List<string>();
-        foreach(var param in endpoint.Parameters.Where(p => p.Source == "Query"))
+        foreach (var param in endpoint.Parameters.Where(p => p.Source == "Query"))
         {
-            if(param.IsCollection)
+            if (param.IsCollection)
             {
                 var exampleValue1 = GenerateParameterExample(param);
                 var exampleValue2 = GenerateParameterExample(param);
@@ -50,7 +50,7 @@ internal class EndpointService
             }
         }
 
-        if(queryParams.Any())
+        if (queryParams.Any())
         {
             url += "?" + string.Join("&", queryParams);
         }
@@ -66,22 +66,22 @@ internal class EndpointService
 
     public string GetFormEnctype(ApiEndpointInfo endpoint)
     {
-        if(endpoint == null)
+        if (endpoint == null)
             return "application/x-www-form-urlencoded";
 
-        foreach(var param in endpoint.Parameters.Where(p => p.Source == "Form"))
+        foreach (var param in endpoint.Parameters.Where(p => p.Source == "Form"))
         {
             Type type = GetTypeFromName(param.Type);
-            if(type is not null && type == typeof(byte[]) || type?.Name == "IFormFile")
+            if (type is not null && type == typeof(byte[]) || type?.Name == "IFormFile")
             {
                 return "multipart/form-data";
             }
 
-            if(type != null)
+            if (type != null)
             {
-                foreach(var prop in GetFormProperties(param.Type))
+                foreach (var prop in GetFormProperties(param.Type))
                 {
-                    if(prop.PropertyType == typeof(byte[]) || prop.PropertyType.Name == "IFormFile")
+                    if (prop.PropertyType == typeof(byte[]) || prop.PropertyType.Name == "IFormFile")
                     {
                         return "multipart/form-data";
                     }
@@ -95,10 +95,10 @@ internal class EndpointService
     public int CountLinesInSchema(Dictionary<string, object> schema)
     {
         int result = 5;
-        if(schema != null)
+        if (schema != null)
         {
             var json = JsonSchemaGenerator.GetExampleAsJsonString(schema);
-            if(!string.IsNullOrWhiteSpace(json))
+            if (!string.IsNullOrWhiteSpace(json))
             {
                 result = json.Split('\n').Length;
             }
@@ -109,7 +109,7 @@ internal class EndpointService
     public IEnumerable<ApiEndpointInfo> GetAllEndpoints(EndpointGroupNode node)
     {
         var endpoints = new List<ApiEndpointInfo>(node.Endpoints);
-        foreach(var child in node.Children)
+        foreach (var child in node.Children)
         {
             endpoints.AddRange(GetAllEndpoints(child));
         }
@@ -138,10 +138,10 @@ internal class EndpointService
     {
         var typeToUse = param.IsCollection ? param.CollectionElementType : param.Type;
 
-        if(param.Schema != null)
+        if (param.Schema != null)
         {
             var example = JsonSchemaGenerator.GetExampleAsJsonString(param.Schema);
-            if(!string.IsNullOrEmpty(example))
+            if (!string.IsNullOrEmpty(example))
             {
                 return example.Trim('"');
             }
